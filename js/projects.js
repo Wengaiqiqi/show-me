@@ -3,7 +3,7 @@
 //   video    宣传片地址。放在 assets/video/ 下的 mp4 会像电视一样在画框上一直循环播放；GitHub 附件地址只能在弹窗里播放
 //   demoUrl  已部署的在线地址；填上后项目介绍里会出现「在线体验」按钮
 //   cover    画框上的画面；不填时自动生成一幅抽象画
-//   shots    项目介绍里轮播的截图
+//   shots    没有宣传片时，在「宣传片」页里轮播的截图
 const GH = 'https://github.com/Wengaiqiqi/';
 const ATT = 'https://github.com/user-attachments/assets/';
 
@@ -127,7 +127,6 @@ export const MUSIC = [
     desc: '一首写给大模型的歌：从加载权重、向量空间里的星团，到「幻觉」与一个字一个字吐出的句子，用赛博风的画面唱出「预测下一个 token」的过程。',
     palette: ['#a21caf', '#22d3ee', '#f5d0fe', '#0b0614'],
     cover: 'assets/img/next-token.jpg',
-    shots: ['assets/img/next-token.jpg', 'assets/img/next-token-2.jpg', 'assets/img/next-token-3.jpg'],
     video: 'assets/video/next-token.mp4',
   },
 ];

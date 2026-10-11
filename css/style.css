@@ -67,9 +67,7 @@ kbd { display: inline-block; min-width: 1.6em; padding: 0 .35em; margin: 0 .1em;
 .modes .hint { font-size: 12px; color: var(--muted); padding: 0 8px; }
 #modal-body { padding: 20px; }
 video.promo { width: 100%; max-height: 66vh; background: #000; border-radius: 10px; display: block; }
-.intro-grid { display: grid; grid-template-columns: 1.15fr 1fr; gap: 24px; align-items: start; }
-@media (max-width: 820px) { .intro-grid { grid-template-columns: 1fr; } }
-.no-shot { display: grid; place-items: center; aspect-ratio: 16 / 10; border: 1px dashed var(--line); border-radius: 10px; color: var(--muted); }
+.info-pane { max-width: 720px; }
 .info-pane .lead { font-size: 16px; }
 .info-pane h4 { margin: 18px 0 8px; }
 .links { margin-top: 20px; }

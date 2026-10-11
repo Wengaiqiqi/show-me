@@ -512,12 +512,7 @@ function switchMode(mode) {
     return;
   }
 
-  // 项目介绍
-  const grid = el('div', 'intro-grid');
-  const left = el('div', 'info-media');
-  const g = gallery(p.shots?.length ? p.shots : p.cover ? [p.cover] : null);
-  if (g) left.append(g);
-  else left.append(el('div', 'no-shot', '暂无截图'));
+  // 项目介绍：只放文字
   const info = el('div', 'info-pane');
   info.append(el('p', 'lead', p.desc));
   if (p.features) info.append(el('h4', '', '主要功能'), el('ul', '', p.features.map((f) => `<li>${f}</li>`).join('')));
@@ -533,8 +528,7 @@ function switchMode(mode) {
   }
   links.querySelectorAll('a').forEach((a) => Object.assign(a, { target: '_blank', rel: 'noopener' }));
   info.append(links);
-  grid.append(left, info);
-  modalBody.append(grid);
+  modalBody.append(info);
 }
 
 // ---------------- 主循环 ----------------
