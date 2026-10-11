@@ -11,13 +11,29 @@
 
 - **Three.js（WebGL）**，纯静态网页，无需构建，打开即玩。Three.js 已放在 `vendor/` 里，不依赖外部 CDN，国内访问也稳定。
 - 没有用虚幻 5：UE5 已不再支持导出 HTML5，网页上要跑 UE5 只能走像素流送（Pixel Streaming），每位访客都要占用一台云端 GPU 服务器，成本高、并发低，不适合公开分享的作品集链接。
-- 展馆目前由代码程序生成（墙、木地板、天窗灯带、射灯、长椅、雕塑）。
+- 展馆用 **Blender** 建模并烘焙光照（`blender/build_gallery.py`），导出成 `assets/gallery.glb` + 两张光照贴图，网页里只做实时的画框、射灯和雕塑。
 
-## 换成自己用 Blender 做的展馆
+## 展馆布局
 
-1. 在 Blender 里建好展馆，导出为 `glTF Binary (.glb)`，保存为 `assets/gallery.glb`。
-2. 刷新页面即可：检测到这个文件时会隐藏程序生成的墙和地面，改用你的模型。
-3. 画框位置在 `js/main.js` 的 `slotFor()` 里，按你的模型调整坐标即可。
+参考了 MECCHA CHAMELEON 创意工坊地图「ART GALLERY」那种古典美术馆的感觉（只参考风格，模型和贴图都是自己生成的）：
+
+- **大堂**：黑白大理石地面、红地毯、藻井天花、吊灯、前台、入口上方的监控摄像头
+- **中庭**：11 米挑高，玻璃天窗把阳光洒在罗盘拼花地面上；12 根柱子围成柱廊，中间是围着红绒绳的展台
+- **西展厅**（酒红锦缎墙）/ **东展厅**（墨绿墙）：人字拼木地板、护墙板、柔光灯箱顶
+- **长廊**：横梁天花与长条灯箱，尽头是标题墙
+
+作品挂画的顺序：长廊 4 幅 → 西展厅 3 幅 → 东展厅 3 幅；作品不够时空画位挂「敬请期待」，超过 10 件时启用中庭的 4 个备用画位。
+
+## 用 Blender 修改展馆
+
+展馆完全由 [`blender/build_gallery.py`](blender/build_gallery.py) 用代码生成，房间尺寸、门洞、材质颜色、灯光、画位都在这个文件里。
+
+- **在 Blender 里看 / 改**：打开 Blender（4.2 及以上），在 Scripting 面板打开这个文件点运行，会新建一个「作品馆」场景（不会动你当前的文件）。界面里运行默认不烘焙、不导出。
+- **重新生成网站用的文件**：
+  ```bash
+  blender -b -P blender/build_gallery.py      # 或者 pip install bpy 之后：python blender/build_gallery.py
+  ```
+  会写出 `assets/gallery.glb`、`assets/gallery-light.jpg`、`assets/gallery-light-detail.jpg` 和 `assets/gallery.json`（画位、碰撞区域、出生点）。默认 2048 光照贴图 × 256 采样，4 核 CPU 大约半小时；调试时可以 `LM_SIZE=1024 SAMPLES=64` 先看效果。
 
 ## 添加 / 修改作品
 
