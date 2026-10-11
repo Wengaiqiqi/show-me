@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Wengaiqiqi 作品馆</title>
+  <meta name="description" content="走进 3D 艺术馆，逛一逛 Wengaiqiqi 的全部公开项目。" />
+  <link rel="stylesheet" href="css/style.css" />
+  <script type="importmap">
+    { "imports": {
+      "three": "./vendor/three/build/three.module.min.js",
+      "three/addons/": "./vendor/three/examples/jsm/"
+    } }
+  </script>
+</head>
+<body>
+  <canvas id="scene"></canvas>
+
+  <section id="intro">
+    <div class="card">
+      <p class="eyebrow">Wengaiqiqi · GitHub 作品集</p>
+      <h1>作品馆</h1>
+      <p>这里陈列着 <b id="count">9</b> 件公开项目。每件作品都是墙上的一幅画，走近它，就能看宣传片或者上手试玩。</p>
+      <ul class="keys">
+        <li><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 行走，<kbd>Shift</kbd> 快走，鼠标转视角</li>
+        <li><kbd>E</kbd> 或单击 观看作品，<kbd>Tab</kbd> 切换宣传片 / 实机</li>
+        <li><kbd>M</kbd> 展品目录，<kbd>Esc</kbd> 退出</li>
+        <li class="touch-only">手机：左下拖动行走，右侧滑动转头</li>
+      </ul>
+      <button id="enter" class="btn big" disabled>展馆布置中…</button>
+    </div>
+  </section>
+
+  <div id="hud" hidden>
+    <div id="crosshair"></div>
+    <button id="prompt" hidden></button>
+    <button id="menu-btn" class="chip">☰ 目录 (M)</button>
+  </div>
+
+  <div id="mobile" hidden><div id="pad"><div id="stick"></div></div></div>
+
+  <section id="menu" hidden>
+    <div class="card">
+      <div class="row between"><h2>展品目录</h2><button id="menu-close" class="chip">关闭</button></div>
+      <ol id="menu-list"></ol>
+    </div>
+  </section>
+
+  <section id="modal" hidden>
+    <div class="sheet">
+      <header>
+        <div>
+          <h2 id="modal-title"></h2>
+          <p id="modal-sub" class="muted"></p>
+        </div>
+        <div class="modes" role="tablist">
+          <button data-mode="video">🎬 宣传片</button>
+          <button data-mode="live">🎮 实机</button>
+          <span class="hint"><kbd>Tab</kbd> 切换</span>
+        </div>
+        <div class="row">
+          <a id="modal-repo" class="chip" target="_blank" rel="noopener">GitHub ↗</a>
+          <button id="modal-close" class="chip">关闭 (Esc)</button>
+        </div>
+      </header>
+      <div id="modal-body"></div>
+    </div>
+  </section>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
