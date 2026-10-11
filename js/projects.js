@@ -32,7 +32,7 @@ export const PROJECTS = [
     features: ['自动识别 PPT 页面与起止时间', '本地或云端语音识别', '按页归类讲话文字', '多模态大模型逐页评分', '多任务流水线并行处理'],
     palette: ['#7c3aed', '#f472b6', '#fde68a', '#1e1b4b'],
     demoUrl: '',
-    video: ATT + '80a4c039-4f63-4998-8293-395ffd1950e2',
+    video: 'assets/video/kexi.mp4',
   },
   {
     id: 'MyNotebookLM',
@@ -45,7 +45,7 @@ export const PROJECTS = [
     cover: 'assets/img/nb-project-list.jpg',
     shots: ['assets/img/nb-project-list.jpg', 'assets/img/nb-first-launch.jpg', 'assets/img/nb-index.jpg', 'assets/img/nb-notes.jpg'],
     demoUrl: '',
-    video: ATT + 'af147c97-fd69-4ce3-9bdf-6d4b8c673b98',
+    video: 'assets/video/mynotebooklm.mp4',
   },
   {
     id: 'OpenHarness',
@@ -56,7 +56,7 @@ export const PROJECTS = [
     features: ['自动检测本机 Harness', 'MCP Server 批量注入', 'Skill 扫描、导入与同步', '统一 LLM Provider 配置', '多模型流式对话'],
     palette: ['#ea580c', '#facc15', '#fff7ed', '#1c1917'],
     demoUrl: '',
-    video: ATT + 'e09ed19b-2022-4435-8ca8-2f2bf976fa09',
+    video: 'assets/video/openharness.mp4',
   },
   {
     id: 'Practice-Grind',
@@ -89,7 +89,7 @@ export const PROJECTS = [
     features: ['中心编排器 + 专家子 Agent', '13 个内置工具', '三级权限控制', 'SKILL.md 技能系统', '飞书 / QQ 机器人桥接'],
     palette: ['#be123c', '#fb923c', '#ffe4e6', '#1f0a12'],
     demoUrl: '',
-    video: ATT + 'db0bddde-87e3-456b-8813-bb47f2eef3b5',
+    video: 'assets/video/ww-agent.mp4',
   },
   {
     id: 'lianyu-pro',

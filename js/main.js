@@ -109,7 +109,8 @@ function addPainting(p, i, slot) {
       entry.tv = true;
       if (focused === entry) setFocus(entry);
       artMat.map = artMat.emissiveMap = tex;
-      artMat.emissiveIntensity = 0.55;
+      // 屏幕自己发光，压低漫反射，免得射灯在白底画面上打出一块光斑
+      artMat.color.setScalar(0.2); artMat.roughness = 1; artMat.emissiveIntensity = 0.85;
       artMat.needsUpdate = true;
     }, { once: true });
   }
