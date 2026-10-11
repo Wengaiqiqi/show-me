@@ -148,6 +148,9 @@ def define_materials():
     material('leaf', '#2f5a2a', 0.65)
     material('leaf_light', '#4f7d38', 0.65)
     material('bronze', '#6d4a2a', 0.35, 0.8)
+    material('plaster_navy', '#1f2b45', 0.9, spec=0.2)
+    material('ceiling_dark', '#26262b', 0.95, spec=0.1)
+    material('stage_black', '#141414', 0.6)
     # 不参与烘焙的发光件
     material('glow_sky', '#000000', 1.0, emit='#dbe9f7', emit_strength=1.6)
     material('glow_laylight', '#000000', 1.0, emit='#fff6e6', emit_strength=1.4)
@@ -299,6 +302,7 @@ ROOMS = {
     'west': dict(x0=-29, x1=-11.4, z0=-19, z1=-3, h=6.5),
     'east': dict(x0=11.4, x1=29, z0=-19, z1=-3, h=6.5),
     'grand': dict(x0=-7, x1=7, z0=-48.4, z1=-22.4, h=8.0),
+    'music': dict(x0=-21.6, x1=-8.4, z0=0.4, z1=10.4, h=6.5),
 }
 for _k, _r in ROOMS.items():
     _r['name'] = _k
@@ -311,6 +315,7 @@ DOORS = [
     dict(a=('atrium', '-x'), b=('west', '+x'), c=-11.0, w=5.0, h=DOOR_H),
     dict(a=('atrium', '+x'), b=('east', '-x'), c=-11.0, w=5.0, h=DOOR_H),
     dict(a=('atrium', '-z'), b=('grand', '+z'), c=0.0, w=5.0, h=DOOR_H),
+    dict(a=('lobby', '-x'), b=('music', '+x'), c=5.4, w=4.0, h=DOOR_H),
     dict(a=('lobby', '+z'), b=None, c=0.0, w=4.0, h=3.8, entrance=True),
 ]
 
@@ -669,9 +674,10 @@ def build_lobby():
     plant(-6.9, 9.5, 1)
     plant(6.9, 9.5, 2)
     plant(-6.9, 1.4, 3)
-    bench(-6.6, 4.8, 'z', 2.2)
+    bench(-4.8, 1.3, 'x', 2.2)
     label('title', 'lobby', '-z', 0, 5.95, 6.0, 1.1)
     label('thanks', 'lobby', '+z', 0, 5.4, 5.2, 1.1)
+    label('music', 'lobby', '-x', 5.4, 5.75, 3.4, 0.8)
 
 
 def build_atrium():
@@ -722,7 +728,7 @@ def build_atrium():
     geo('brass').cyl(cx, 0.85, 0.89, cz, 1.33, seg=48)
     stanchion_ring(cx, cz, 2.45, 8)
     obstacle_circle(cx, cz, 2.6)
-    LAYOUT['sculptures'].append(dict(pos=(cx, 0.89, cz), scale=2.6, color='#c2410c', kind='knot'))
+    LAYOUT['sculptures'].append(dict(pos=(cx, 0.89, cz), scale=2.6, color='#c2410c', kind='w'))
     # 角落的植物、长椅、胸像
     for sx in (-1, 1):
         for sz in (-1, 1):
@@ -765,7 +771,7 @@ def build_wing(name, wall_mat, accent):
         slot(name, side, s, 2.55, 4.2, 2.6)
     bench(cx, cz, 'x', 2.6)
     sgn = -1 if name == 'west' else 1
-    pedestal(cx - 5.2 * sgn, cz + 4.6, sculpture=dict(scale=1.0, color=accent, kind='knot'))
+    pedestal(cx - 5.2 * sgn, cz + 4.6, sculpture=dict(scale=1.0, color=accent, kind='w'))
     pedestal(cx + 5.2 * sgn, cz - 4.6, sculpture=dict(scale=1.0, color=accent, kind='rings'))
     plant(r['x1'] - 1.0 if name == 'west' else r['x0'] + 1.0, r['z0'] + 1.0, 30 + sgn)
     plant(r['x1'] - 1.0 if name == 'west' else r['x0'] + 1.0, r['z1'] - 1.0, 40 + sgn)
@@ -801,12 +807,52 @@ def build_grand():
             slot('grand', side, zz, 2.75, 4.4, 2.75)
     bench(cx, -29.6, 'z', 2.6)
     bench(cx, -40.6, 'z', 2.6)
-    pedestal(cx, -35.1, 0.8, 1.0, sculpture=dict(scale=1.3, color='#0e7490', kind='knot'))
+    pedestal(cx, -35.1, 0.8, 1.0, sculpture=dict(scale=1.3, color='#0e7490', kind='w'))
     pedestal(cx - 4.4, r['z0'] + 2.0, sculpture=dict(scale=1.0, color='#b08d57', kind='rings'))
     pedestal(cx + 4.4, r['z0'] + 2.0, sculpture=dict(scale=1.0, color='#b08d57', kind='rings'))
     label('hero', 'grand', '-z', cx, 3.6, 7.0, 3.5)
     for x in (-5.4, 5.4):
         plant(x, r['z1'] - 1.2, 50 + int(x))
+
+
+def build_music():
+    """音乐作品集：大堂左手边的小放映厅，尽头一块大银幕，前面一个小舞台和两排长椅。"""
+    r = ROOMS['music']
+    cx, cz = r['cx'], r['cz']
+    trims = dict(dado='walnut', rail='walnut', base='walnut', arch='walnut', crown='walnut')
+    for side in ('-x', '+x', '-z', '+z'):
+        build_wall(r, side, [(0, r['h'], 'plaster_navy')], trims)
+    ageo('planks').floor(r['x0'], r['x1'], r['z0'], r['z1'])
+    build_ceiling(r, 'ceiling_dark')
+    # 顶棚上的木格栅（吸音板）
+    for x in np.arange(r['x0'] + 1.6, r['x1'] - 1.0, 1.6):
+        ageo('walnut').box(x - 0.08, x + 0.08, r['h'] - 0.3, r['h'], r['z0'], r['z1'], '+x-x-y')
+    # 舞台 + 银幕
+    st = r['x0'] + 2.0
+    geo('stage_black').box(r['x0'], st, 0, 0.32, r['z0'] + 0.8, r['z1'] - 0.8, '+x+y+z-z')
+    geo('walnut').box(st - 0.04, st, 0.02, 0.3, r['z0'] + 0.8, r['z1'] - 0.8, '+x')
+    obstacle_box(r['x0'], st, r['z0'] + 0.8, r['z1'] - 0.8)
+    slot('music', '-x', cz, 3.1, 6.4, 3.6)
+    label('music_title', 'music', '-x', cz, 5.6, 3.6, 0.6)
+    # 两侧墙上留给以后的音乐作品
+    for side in ('-z', '+z'):
+        slot('music', side, cx + 1.5, 2.6, 3.2, 1.8, tier=2)
+    # 舞台两边的音符雕塑
+    for z in (r['z0'] + 1.6, r['z1'] - 1.6):
+        pedestal(st + 0.9, z, 0.6, 1.0, sculpture=dict(scale=1.0, color='#d6a65c', kind='note'))
+    # 两排长椅，中间留出正对银幕的过道
+    for x in (cx - 0.4, cx + 2.6):
+        for z in (r['z0'] + 2.2, r['z1'] - 2.2):
+            bench(x, z, 'z', 2.6)
+    # 暖色吊灯 + 暗藏灯带，整体压暗一点，像放映厅
+    for x in (cx - 1.5, cx + 3.0):
+        for z in (r['z0'] + 2.6, r['z1'] - 2.6):
+            geo('brass').cyl(x, 5.0, r['h'] - 0.3, z, 0.012, seg=6, caps=False)
+            geo('glow_bulb', baked=False).sphere(x, 4.9, z, 0.16, sub=2)
+            point_light(f'Music_{x:.1f}_{z:.1f}', x, 4.9, z, 160, 0.16)
+    cove_lights(r, 90)
+    plant(r['x1'] - 0.9, r['z0'] + 0.9, 60)
+    plant(r['x1'] - 0.9, r['z1'] - 0.9, 61)
 
 
 def build_extra_slots():
@@ -968,7 +1014,7 @@ def export(lightmaps):
     LAYOUT['lightmaps'] = lightmaps
     LAYOUT['model'] = 'assets/gallery.glb'
     # 作品按这个顺序上墙：先长廊（进门就能看到），再西展厅、东展厅，最后才用中庭的备用位
-    order = {'grand': 0, 'west': 1, 'east': 2, 'atrium': 3}
+    order = {'grand': 0, 'west': 1, 'east': 2, 'atrium': 3, 'music': 4}
     LAYOUT['slots'].sort(key=lambda s: (s['tier'], order[s['room']]))
     with open(os.path.join(ASSETS, 'gallery.json'), 'w', encoding='utf-8') as f:
         json.dump(LAYOUT, f, ensure_ascii=False, indent=1, default=lambda v: round(float(v), 4))
@@ -984,6 +1030,7 @@ def main():
     build_wing('west', 'damask', '#d6a65c')
     build_wing('east', 'plaster_green', '#e2e8f0')
     build_grand()
+    build_music()
     build_extra_slots()
     walkable()
     finalize_meshes()

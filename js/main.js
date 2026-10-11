@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { PROJECTS, OWNER } from './projects.js';
+import { PROJECTS, MUSIC } from './projects.js';
 import { abstractPainting, plaque, textPanel } from './art.js';
 
 // 展馆模型由 blender/build_gallery.py 生成：gallery.glb 是建筑本体，gallery.json 是画位、碰撞等布局数据。
@@ -149,8 +149,37 @@ function addSculpture(s) {
       ring.userData.spin = 0.3 + k * 0.25;
       g.add(ring);
     });
+  } else if (s.kind === 'note') {
+    // 八分音符：斜放的符头 + 符干 + 符尾
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.12, 32, 16), mat);
+    head.scale.set(1.35, 0.95, 0.8);
+    head.rotation.z = 0.45;
+    head.position.set(-0.1, -0.3, 0);
+    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 0.68, 16), mat);
+    stem.position.set(0.045, 0.03, 0);
+    const flag = new THREE.CubicBezierCurve3(
+      new THREE.Vector3(0.045, 0.37, 0), new THREE.Vector3(0.2, 0.3, 0),
+      new THREE.Vector3(0.3, 0.12, 0), new THREE.Vector3(0.19, -0.04, 0));
+    g.add(head, stem, new THREE.Mesh(new THREE.TubeGeometry(flag, 48, 0.028, 12), mat));
   } else {
-    g.add(new THREE.Mesh(new THREE.TorusKnotGeometry(0.28, 0.09, 160, 16), mat));
+    // 「W」形的金属管
+    const pts = [[-0.44, 0.3], [-0.22, -0.3], [0, 0.14], [0.22, -0.3], [0.44, 0.3]].map(([x, y]) => new THREE.Vector3(x, y, 0));
+    const path = new THREE.CurvePath();
+    let from = pts[0];
+    for (let k = 1; k < pts.length - 1; k++) {
+      const a = pts[k].clone().lerp(pts[k - 1], 0.08 / pts[k].distanceTo(pts[k - 1]));
+      const b = pts[k].clone().lerp(pts[k + 1], 0.08 / pts[k].distanceTo(pts[k + 1]));
+      path.add(new THREE.LineCurve3(from, a));
+      path.add(new THREE.QuadraticBezierCurve3(a, pts[k], b));
+      from = b;
+    }
+    path.add(new THREE.LineCurve3(from, pts.at(-1)));
+    g.add(new THREE.Mesh(new THREE.TubeGeometry(path, 240, 0.075, 20), mat));
+    for (const end of [pts[0], pts.at(-1)]) {
+      const cap = new THREE.Mesh(new THREE.SphereGeometry(0.075, 20, 12), mat);
+      cap.position.copy(end);
+      g.add(cap);
+    }
   }
   g.scale.setScalar(s.scale);
   g.position.set(s.pos[0], s.pos[1] + 0.45 * s.scale, s.pos[2]);
@@ -320,6 +349,12 @@ document.getElementById('menu-close').addEventListener('click', () => toggleMenu
 // ---------------- 墙上的电视：所有宣传片一直循环 ----------------
 // 声音：同一时间只有离你最近（6 米内）的那台出声，随距离淡入淡出，其余静音，避免串音
 const HEAR_FAR = 6, HEAR_NEAR = 3.5;
+// 音乐厅的大银幕坐在长椅上也要听得到，范围放大
+const hearing = (e) => (e.slot.room === 'music' ? [12, 8] : [HEAR_FAR, HEAR_NEAR]);
+function hearLevel(e, d) {
+  const [far, near] = hearing(e);
+  return THREE.MathUtils.clamp((far - d) / (far - near), 0, 1);
+}
 let audioOn = false; // 浏览器要求用户点过页面才能出声，点「进入展馆」后打开
 // iOS 上 video.volume 是只读的，只能用 muted 硬切
 const canFade = (() => {
@@ -355,15 +390,13 @@ function enableAudio() {
   }
 }
 
-function updateAudio(nearest, nearestDist, dt) {
+function updateAudio(loudest, level, dt) {
   const k = Math.min(1, dt * 4);
   for (const e of paintings) {
     const v = e.videoEl;
     if (!v) continue;
     let target = 0;
-    if (audioOn && !modalOpen && !menuOpen && e === nearest) {
-      target = THREE.MathUtils.clamp((HEAR_FAR - nearestDist) / (HEAR_FAR - HEAR_NEAR), 0, 1);
-    }
+    if (audioOn && !modalOpen && !menuOpen && e === loudest) target = level;
     if (canFade) {
       v.volume = THREE.MathUtils.clamp(v.volume + (target - v.volume) * k, 0, 1);
     } else {
@@ -404,8 +437,11 @@ function openModal(entry) {
   const p = entry.p;
   modalTitle.textContent = p.title;
   modalSub.textContent = p.subtitle;
-  document.getElementById('modal-repo').href = p.repo;
+  const repoLink = document.getElementById('modal-repo');
+  repoLink.hidden = !p.repo;
+  if (p.repo) repoLink.href = p.repo;
   ui.modal.hidden = false;
+  for (const b of modeBtns) b.textContent = b.dataset.mode === 'intro' ? `📖 ${kindName(p)}介绍` : p.music ? '🎬 视频' : '🎬 宣传片';
   switchMode('intro');
 }
 function closeModal() {
@@ -416,6 +452,8 @@ function closeModal() {
   modalOpen = false;
   lockPointer();
 }
+
+const kindName = (p) => (p.music ? '作品' : '项目');
 
 function el(tag, cls, html) {
   const e = document.createElement(tag);
@@ -465,34 +503,32 @@ function switchMode(mode) {
     v.controls = true;
     v.autoplay = true;
     v.playsInline = true;
-    const fallback = el('p', 'muted', `播放不了？<a href="${p.repo}#readme" target="_blank" rel="noopener">到 GitHub 上观看宣传片 ↗</a>`);
-    v.addEventListener('error', () => (fallback.innerHTML = `这段宣传片没能在当前浏览器里加载，请 <a href="${p.repo}#readme" target="_blank" rel="noopener">到 GitHub 上观看 ↗</a>`));
+    const fallback = el('p', 'muted', p.repo ? `播放不了？<a href="${p.repo}#readme" target="_blank" rel="noopener">到 GitHub 上观看宣传片 ↗</a>` : '');
+    v.addEventListener('error', () => (fallback.innerHTML = p.repo
+      ? `这段宣传片没能在当前浏览器里加载，请 <a href="${p.repo}#readme" target="_blank" rel="noopener">到 GitHub 上观看 ↗</a>`
+      : '这段视频没能在当前浏览器里加载。'));
     modalBody.append(v, fallback);
     cleanup = () => v.pause();
     return;
   }
 
-  // 项目介绍
-  const grid = el('div', 'intro-grid');
-  const left = el('div', 'info-media');
-  const g = gallery(p.shots?.length ? p.shots : p.cover ? [p.cover] : null);
-  if (g) left.append(g);
-  else left.append(el('div', 'no-shot', '暂无截图'));
+  // 项目介绍：只放文字
   const info = el('div', 'info-pane');
   info.append(el('p', 'lead', p.desc));
-  info.append(el('h4', '', '主要功能'), el('ul', '', p.features.map((f) => `<li>${f}</li>`).join('')));
-  info.append(el('h4', '', '技术栈'), el('div', 'techs', p.tech.map((t) => `<span>${t}</span>`).join('')));
+  if (p.features) info.append(el('h4', '', '主要功能'), el('ul', '', p.features.map((f) => `<li>${f}</li>`).join('')));
+  if (p.tech) info.append(el('h4', '', '技术栈'), el('div', 'techs', p.tech.map((t) => `<span>${t}</span>`).join('')));
   const links = el('div', 'row links');
-  links.append(el('a', 'btn', '在 GitHub 查看源码 ↗'));
-  links.lastChild.href = p.repo;
+  if (p.repo) {
+    links.append(el('a', 'btn', '在 GitHub 查看源码 ↗'));
+    links.lastChild.href = p.repo;
+  }
   if (p.demoUrl) {
     links.append(el('a', 'chip', '在线体验 ↗'));
     links.lastChild.href = p.demoUrl;
   }
   links.querySelectorAll('a').forEach((a) => Object.assign(a, { target: '_blank', rel: 'noopener' }));
   info.append(links);
-  grid.append(left, info);
-  modalBody.append(grid);
+  modalBody.append(info);
 }
 
 // ---------------- 主循环 ----------------
@@ -531,8 +567,8 @@ function setFocus(entry) {
   const t = focused.p.title;
   const canReplay = !!focused.tv;
   ui.prompt.innerHTML = isTouch
-    ? `<button data-act="intro">「${t}」项目介绍</button>${canReplay ? '<button data-act="replay">↻ 重新播放</button>' : ''}`
-    : `<button data-act="intro">按 <kbd>E</kbd> 查看「${t}」项目介绍</button>${canReplay ? '<button data-act="replay">按 <kbd>R</kbd> 重新播放</button>' : ''}`;
+    ? `<button data-act="intro">「${t}」${kindName(focused.p)}介绍</button>${canReplay ? '<button data-act="replay">↻ 重新播放</button>' : ''}`
+    : `<button data-act="intro">按 <kbd>E</kbd> 查看「${t}」${kindName(focused.p)}介绍</button>${canReplay ? '<button data-act="replay">按 <kbd>R</kbd> 重新播放</button>' : ''}`;
 }
 
 function tick() {
@@ -559,18 +595,20 @@ function tick() {
   // 找到正在看的画
   camera.getWorldDirection(fwd);
   let best = null, bestScore = 0;
-  let nearest = null, nearestDist = Infinity;
+  let loudest = null, loudLevel = 0;
   for (const e of paintings) {
     toP.copy(e.slot.pos).sub(camera.position);
     const d = toP.length();
     const facing = toP.normalize().dot(fwd);
     const score = facing - d / 20;
-    if (d < 7 && facing > 0.6 && score > bestScore) { best = e; bestScore = score; }
+    // 大银幕从远一点的地方也能选中
+    if (d < Math.max(7, e.slot.w * 1.6) && facing > 0.6 && score > bestScore) { best = e; bestScore = score; }
 
     if (e.videoEl) updateWallVideo(e, d);
-    if (e.tv && d < nearestDist) { nearest = e; nearestDist = d; }
+    const lv = e.tv ? hearLevel(e, d) : 0;
+    if (lv > loudLevel) { loudest = e; loudLevel = lv; }
   }
-  updateAudio(nearest, nearestDist, dt);
+  updateAudio(loudest, loudLevel, dt);
   if (best !== focused) setFocus(best);
   if (!started) look.yaw = spawnYaw + Math.sin(performance.now() / 4000) * 0.25;
   for (const s of sculptures) {
@@ -596,30 +634,36 @@ async function init() {
   camera.position.set(sx, EYE, sz);
   spawnYaw = look.yaw = layout.spawn.yaw;
 
-  const main = layout.slots.filter((s) => s.tier === 1);
-  const extra = layout.slots.filter((s) => s.tier !== 1);
+  const isMusic = (s) => s.room === 'music';
+  const main = layout.slots.filter((s) => s.tier === 1 && !isMusic(s));
+  const extra = layout.slots.filter((s) => s.tier !== 1 && !isMusic(s));
   const slots = [...main, ...extra];
   if (PROJECTS.length > slots.length) console.warn(`画位只有 ${slots.length} 个，多出的 ${PROJECTS.length - slots.length} 件作品没有上墙`);
   PROJECTS.slice(0, slots.length).forEach((p, i) => addPainting(p, i, slots[i]));
   main.slice(PROJECTS.length).forEach(addPlaceholder);
+  // 音乐作品集：第一首上大银幕，侧墙的位置留给以后的作品
+  const musicSlots = layout.slots.filter(isMusic);
+  MUSIC.slice(0, musicSlots.length).forEach((m, j) => addPainting(m, j, musicSlots[j]));
 
   const dark = { bg: '#1c1917', fg: '#f5efe6' };
   const TEXTS = {
-    title: [[`${OWNER.name} 的作品馆`, `${PROJECTS.length} 件公开项目 · 来自 GitHub`], { ...dark, size: 110 }],
+    title: [['翁子良的作品馆'], { ...dark, size: 130 }],
     thanks: [['感谢参观', '按 M 打开展品目录，随时传送'], { ...dark, size: 110 }],
-    hero: [[`${OWNER.name} 的作品馆`, `${PROJECTS.length} 件公开项目 · 来自 GitHub`], { ...dark, size: 92 }],
-    west: [['西展厅', 'WEST WING'], { ...dark, size: 150 }],
-    east: [['东展厅', 'EAST WING'], { ...dark, size: 150 }],
-    grand: [['长廊', 'GRAND GALLERY'], { ...dark, size: 150 }],
+    hero: [['翁子良的作品馆'], { ...dark, size: 120 }],
+    west: [['西展厅'], { ...dark, size: 130 }],
+    east: [['东展厅'], { ...dark, size: 130 }],
+    grand: [['长廊'], { ...dark, size: 130 }],
+    music: [['音乐作品集'], { ...dark, size: 130 }],
+    music_title: [['音乐作品集'], { ...dark, size: 110 }],
   };
   for (const l of layout.labels) if (TEXTS[l.id]) wallText(TEXTS[l.id][0], l, TEXTS[l.id][1]);
   layout.sculptures.forEach(addSculpture);
 
-  PROJECTS.forEach((p, i) => {
-    if (!paintings[i]) return;
+  paintings.forEach((e, i) => {
+    const p = e.p;
     const li = document.createElement('li');
-    li.innerHTML = `<b>${String(i + 1).padStart(2, '0')}</b> ${p.title}<span>${p.subtitle}</span>`;
-    li.onclick = () => { teleport(paintings[i]); toggleMenu(false); };
+    li.innerHTML = `<b>${p.music ? '♪' : String(i + 1).padStart(2, '0')}</b> ${p.title}<span>${p.subtitle}</span>`;
+    li.onclick = () => { teleport(e); toggleMenu(false); };
     ui.menuList.append(li);
   });
   document.getElementById('count').textContent = PROJECTS.length;
