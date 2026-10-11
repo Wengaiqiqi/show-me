@@ -1,0 +1,4 @@
+blender/build/
+blender/*.blend
+blender/*.blend1
+__pycache__/
