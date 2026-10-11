@@ -67,7 +67,7 @@ export const PROJECTS = [
     features: ['文档导入自动出题', '五种题型练习', '错题本', '公开题库与 Fork', '个人模型服务商配置'],
     palette: ['#16a34a', '#a3e635', '#f0fdf4', '#052e16'],
     demoUrl: '',
-    video: ATT + '2724287e-5db8-44ab-9c7a-d513438bdd11',
+    video: 'assets/video/practice-grind.mp4',
   },
   {
     id: 'Tab_Scroller',
