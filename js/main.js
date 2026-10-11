@@ -517,17 +517,13 @@ function switchMode(mode) {
   info.append(el('p', 'lead', p.desc));
   if (p.features) info.append(el('h4', '', '主要功能'), el('ul', '', p.features.map((f) => `<li>${f}</li>`).join('')));
   if (p.tech) info.append(el('h4', '', '技术栈'), el('div', 'techs', p.tech.map((t) => `<span>${t}</span>`).join('')));
-  const links = el('div', 'row links');
-  if (p.repo) {
-    links.append(el('a', 'btn', '在 GitHub 查看源码 ↗'));
-    links.lastChild.href = p.repo;
-  }
+  // GitHub 链接在弹窗右上角已经有了，这里只放在线体验
   if (p.demoUrl) {
-    links.append(el('a', 'chip', '在线体验 ↗'));
-    links.lastChild.href = p.demoUrl;
+    const links = el('div', 'row links');
+    links.append(el('a', 'btn', '在线体验 ↗'));
+    Object.assign(links.lastChild, { href: p.demoUrl, target: '_blank', rel: 'noopener' });
+    info.append(links);
   }
-  links.querySelectorAll('a').forEach((a) => Object.assign(a, { target: '_blank', rel: 'noopener' }));
-  info.append(links);
   modalBody.append(info);
 }
 
