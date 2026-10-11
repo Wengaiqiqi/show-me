@@ -3,7 +3,6 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { PROJECTS, OWNER } from './projects.js';
 import { abstractPainting, plaque, textPanel } from './art.js';
-import { DEMOS } from './demos.js';
 
 // 展馆模型由 blender/build_gallery.py 生成：gallery.glb 是建筑本体，gallery.json 是画位、碰撞等布局数据。
 const LAYOUT_URL = 'assets/gallery.json';
@@ -92,18 +91,28 @@ function addPainting(p, i, slot) {
 
   const pos = new THREE.Vector3(...slot.pos);
   const normal = new THREE.Vector3(...slot.normal);
-  const entry = { p, i, group: g, art, artMat, slot: { ...slot, pos, normal }, spot: addSpot(slot), videoEl: null, staticMap: null };
-  // 同源宣传片：走近时在画框上直接播放（静音）
+  const entry = { p, i, group: g, art, artMat, slot: { ...slot, pos, normal }, spot: addSpot(slot), videoEl: null };
+  // 网站里自带的宣传片像墙上的电视一样一直循环播放。GitHub 附件地址不允许跨域读取画面，
+  // 贴不到画框上，只能在弹窗里看，所以要上墙就得把 mp4 放进 assets/video/
   if (p.video && !/^https?:/.test(p.video)) {
     const v = document.createElement('video');
     v.src = p.video;
     v.muted = true;
     v.loop = true;
     v.playsInline = true;
-    v.preload = 'none';
+    v.preload = 'auto';
     entry.videoEl = v;
-    entry.videoTex = new THREE.VideoTexture(v);
-    entry.videoTex.colorSpace = THREE.SRGBColorSpace;
+    const tex = new THREE.VideoTexture(v);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    // 出画面之后再换上视频贴图，加载期间先显示封面
+    v.addEventListener('playing', () => {
+      entry.tv = true;
+      if (focused === entry) setFocus(entry);
+      artMat.map = artMat.emissiveMap = tex;
+      // 屏幕自己发光，压低漫反射，免得射灯在白底画面上打出一块光斑
+      artMat.color.setScalar(0.2); artMat.roughness = 1; artMat.emissiveIntensity = 0.85;
+      artMat.needsUpdate = true;
+    }, { once: true });
   }
   paintings.push(entry);
 }
@@ -206,6 +215,9 @@ function lockPointer() {
 }
 ui.enter.addEventListener('click', () => {
   started = true;
+  // 有些浏览器要等用户点过一次才允许自动播放
+  startWallVideos();
+  enableAudio();
   ui.intro.hidden = true;
   ui.hud.hidden = false;
   if (isTouch) ui.mobile.hidden = false;
@@ -232,13 +244,14 @@ addEventListener('keydown', (e) => {
   if (modalOpen) {
     if (e.key === 'Tab' || e.key.toLowerCase() === 'q') {
       e.preventDefault();
-      switchMode(currentMode === 'video' ? 'live' : 'video');
+      switchMode(currentMode === 'video' ? 'intro' : 'video');
     } else if (e.key === 'Escape') closeModal();
     return;
   }
   if (e.key.toLowerCase() === 'm') return toggleMenu();
   if (menuOpen && e.key === 'Escape') return toggleMenu(false);
   if (e.key.toLowerCase() === 'e' && focused) return openModal(focused);
+  if (e.key.toLowerCase() === 'r' && focused) return replay(focused);
   keys.add(e.code);
 });
 addEventListener('keyup', (e) => keys.delete(e.code));
@@ -277,7 +290,11 @@ ui.mobile.addEventListener('touchend', (e) => {
     if (t.identifier === lookTouch.id) lookTouch.id = null;
   }
 });
-ui.prompt.addEventListener('click', () => focused && openModal(focused));
+ui.prompt.addEventListener('click', (e) => {
+  if (!focused) return;
+  if (e.target.closest('[data-act="replay"]')) replay(focused);
+  else openModal(focused);
+});
 
 // ---------------- 目录 / 传送 ----------------
 function teleport(entry) {
@@ -301,7 +318,61 @@ function toggleMenu(force) {
 document.getElementById('menu-btn').addEventListener('click', () => toggleMenu());
 document.getElementById('menu-close').addEventListener('click', () => toggleMenu(false));
 
-// ---------------- 作品弹窗：宣传片 / 实机 ----------------
+// ---------------- 墙上的电视：所有宣传片一直循环 ----------------
+// 声音：同一时间只有离你最近（6 米内）的那台出声，随距离淡入淡出，其余静音，避免串音
+const HEAR_FAR = 6, HEAR_NEAR = 3.5;
+let audioOn = false; // 浏览器要求用户点过页面才能出声，点「进入展馆」后打开
+// iOS 上 video.volume 是只读的，只能用 muted 硬切
+const canFade = (() => {
+  const v = document.createElement('video');
+  v.volume = 0.5;
+  return v.volume === 0.5;
+})();
+
+function startWallVideos() {
+  for (const e of paintings) e.videoEl?.play().catch(() => {});
+}
+
+function enableAudio() {
+  audioOn = true;
+  for (const e of paintings) {
+    const v = e.videoEl;
+    if (!v || !canFade) continue;
+    v.volume = 0;
+    v.muted = false;
+  }
+}
+
+function updateAudio(nearest, nearestDist, dt) {
+  const k = Math.min(1, dt * 4);
+  for (const e of paintings) {
+    const v = e.videoEl;
+    if (!v) continue;
+    let target = 0;
+    if (audioOn && !modalOpen && !menuOpen && e === nearest) {
+      target = THREE.MathUtils.clamp((HEAR_FAR - nearestDist) / (HEAR_FAR - HEAR_NEAR), 0, 1);
+    }
+    if (canFade) {
+      v.volume = THREE.MathUtils.clamp(v.volume + (target - v.volume) * k, 0, 1);
+    } else {
+      const mute = target < 0.3;
+      if (v.muted !== mute) {
+        v.muted = mute;
+        if (!mute) v.play().catch(() => (v.muted = true));
+      }
+    }
+  }
+}
+
+// 从头重播
+function replay(entry) {
+  const v = entry.videoEl;
+  if (!entry.tv) return;
+  v.currentTime = 0;
+  v.play().catch(() => {});
+}
+
+// ---------------- 作品弹窗：宣传片 / 项目介绍 ----------------
 let focused = null;
 let currentMode = 'video';
 let currentEntry = null;
@@ -323,7 +394,7 @@ function openModal(entry) {
   modalSub.textContent = p.subtitle;
   document.getElementById('modal-repo').href = p.repo;
   ui.modal.hidden = false;
-  switchMode(p.video ? 'video' : 'live');
+  switchMode('intro');
 }
 function closeModal() {
   cleanup();
@@ -372,7 +443,7 @@ function switchMode(mode) {
 
   if (mode === 'video') {
     if (!p.video) {
-      modalBody.append(el('p', 'muted', '这个项目还没有宣传片。切到「实机」看看它能做什么。'));
+      modalBody.append(el('p', 'muted', '这个项目还没有宣传片，先看看截图吧。'));
       const g = gallery(p.shots);
       if (g) modalBody.append(g);
       return;
@@ -389,27 +460,26 @@ function switchMode(mode) {
     return;
   }
 
-  // 实机
+  // 项目介绍
+  const grid = el('div', 'intro-grid');
+  const left = el('div', 'info-media');
+  const g = gallery(p.shots?.length ? p.shots : p.cover ? [p.cover] : null);
+  if (g) left.append(g);
+  else left.append(el('div', 'no-shot', '暂无截图'));
+  const info = el('div', 'info-pane');
+  info.append(el('p', 'lead', p.desc));
+  info.append(el('h4', '', '主要功能'), el('ul', '', p.features.map((f) => `<li>${f}</li>`).join('')));
+  info.append(el('h4', '', '技术栈'), el('div', 'techs', p.tech.map((t) => `<span>${t}</span>`).join('')));
+  const links = el('div', 'row links');
+  links.append(el('a', 'btn', '在 GitHub 查看源码 ↗'));
+  links.lastChild.href = p.repo;
   if (p.demoUrl) {
-    const f = el('iframe', 'live');
-    f.src = p.demoUrl;
-    f.allow = 'fullscreen; clipboard-write';
-    modalBody.append(f, el('p', 'muted', `<a href="${p.demoUrl}" target="_blank" rel="noopener">在新标签页打开 ↗</a>`));
-    return;
+    links.append(el('a', 'chip', '在线体验 ↗'));
+    links.lastChild.href = p.demoUrl;
   }
-  const grid = el('div', 'live-grid');
-  const left = el('div', 'demo-pane');
-  left.append(el('div', 'tag', '互动演示 · 浏览器内模拟'));
-  const stage = el('div', 'demo');
-  left.append(stage);
-  cleanup = DEMOS[p.demo]?.(stage, p) ?? (() => {});
-  const right = el('div', 'info-pane');
-  right.append(el('p', '', p.desc));
-  const g = gallery(p.shots);
-  if (g) right.append(g);
-  right.append(el('h4', '', '主要功能'), el('ul', '', p.features.map((f) => `<li>${f}</li>`).join('')));
-  right.append(el('div', 'techs', p.tech.map((t) => `<span>${t}</span>`).join('')));
-  grid.append(left, right);
+  links.querySelectorAll('a').forEach((a) => Object.assign(a, { target: '_blank', rel: 'noopener' }));
+  info.append(links);
+  grid.append(left, info);
   modalBody.append(grid);
 }
 
@@ -445,7 +515,12 @@ function setFocus(entry) {
   focused = entry;
   if (focused) focused.spot.intensity = 65;
   ui.prompt.hidden = !focused || !started;
-  if (focused) ui.prompt.innerHTML = `${isTouch ? '点这里' : '按 <kbd>E</kbd> 或单击'}观看「${focused.p.title}」`;
+  if (!focused) return;
+  const t = focused.p.title;
+  const canReplay = !!focused.tv;
+  ui.prompt.innerHTML = isTouch
+    ? `<button data-act="intro">「${t}」项目介绍</button>${canReplay ? '<button data-act="replay">↻ 重新播放</button>' : ''}`
+    : `<button data-act="intro">按 <kbd>E</kbd> 查看「${t}」项目介绍</button>${canReplay ? '<button data-act="replay">按 <kbd>R</kbd> 重新播放</button>' : ''}`;
 }
 
 function tick() {
@@ -472,6 +547,7 @@ function tick() {
   // 找到正在看的画
   camera.getWorldDirection(fwd);
   let best = null, bestScore = 0;
+  let nearest = null, nearestDist = Infinity;
   for (const e of paintings) {
     toP.copy(e.slot.pos).sub(camera.position);
     const d = toP.length();
@@ -479,22 +555,9 @@ function tick() {
     const score = facing - d / 20;
     if (d < 7 && facing > 0.6 && score > bestScore) { best = e; bestScore = score; }
 
-    // 画框上的视频：走近播放、走远暂停
-    if (e.videoEl) {
-      const near = d < 9 && !modalOpen;
-      if (near && e.videoEl.paused) {
-        e.staticMap ??= e.artMat.map;
-        e.videoEl.play().then(() => {
-          e.artMat.map = e.artMat.emissiveMap = e.videoTex;
-          e.artMat.needsUpdate = true;
-        }).catch(() => {});
-      } else if (!near && !e.videoEl.paused) {
-        e.videoEl.pause();
-        e.artMat.map = e.artMat.emissiveMap = e.staticMap;
-        e.artMat.needsUpdate = true;
-      }
-    }
+    if (e.tv && d < nearestDist) { nearest = e; nearestDist = d; }
   }
+  updateAudio(nearest, nearestDist, dt);
   if (best !== focused) setFocus(best);
   if (!started) look.yaw = spawnYaw + Math.sin(performance.now() / 4000) * 0.25;
   for (const s of sculptures) {
@@ -557,6 +620,7 @@ async function init() {
   }
   ui.enter.disabled = false;
   ui.enter.textContent = '进入展馆';
+  startWallVideos();
   // 调试用：地址后加 ?debug 可以在控制台里用 gallery.camera / gallery.look 摆机位
   if (new URLSearchParams(location.search).has('debug')) window.gallery = { camera, look, paintings, teleport, renderer };
 }
