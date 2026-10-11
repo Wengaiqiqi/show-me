@@ -1,10 +1,9 @@
 // 展品清单：每个公开仓库一幅画。
 // 字段说明：
-//   video    宣传片地址（同源 mp4 会直接在画框上播放；GitHub 附件地址只在弹窗里播放）
-//   demoUrl  已部署的在线演示地址；填上后「实机」模式会直接在弹窗中嵌入它
-//   demo     没有在线地址时，「实机」模式使用的内置互动演示类型
+//   video    宣传片地址。放在 assets/video/ 下的 mp4 会像电视一样在画框上一直循环播放；GitHub 附件地址只能在弹窗里播放
+//   demoUrl  已部署的在线地址；填上后项目介绍里会出现「在线体验」按钮
 //   cover    画框上的画面；不填时自动生成一幅抽象画
-//   shots    「实机」导览里轮播的截图
+//   shots    项目介绍里轮播的截图
 const GH = 'https://github.com/Wengaiqiqi/';
 const ATT = 'https://github.com/user-attachments/assets/';
 
@@ -21,7 +20,6 @@ export const PROJECTS = [
     palette: ['#1d4ed8', '#38bdf8', '#e2e8f0', '#0f172a'],
     cover: 'assets/img/industrial.jpg',
     shots: ['assets/img/industrial.jpg'],
-    demo: 'dashboard',
     demoUrl: '',
     video: '',
   },
@@ -33,9 +31,8 @@ export const PROJECTS = [
     tech: ['Python', 'FFmpeg', 'faster-whisper', '多模态 LLM', 'Windows 桌面端'],
     features: ['自动识别 PPT 页面与起止时间', '本地或云端语音识别', '按页归类讲话文字', '多模态大模型逐页评分', '多任务流水线并行处理'],
     palette: ['#7c3aed', '#f472b6', '#fde68a', '#1e1b4b'],
-    demo: 'pipeline',
     demoUrl: '',
-    video: ATT + '52d71e7d-cb5f-41a8-b54a-dce3939ba151',
+    video: ATT + '80a4c039-4f63-4998-8293-395ffd1950e2',
   },
   {
     id: 'MyNotebookLM',
@@ -47,9 +44,8 @@ export const PROJECTS = [
     palette: ['#0f766e', '#5eead4', '#fef3c7', '#042f2e'],
     cover: 'assets/img/nb-project-list.jpg',
     shots: ['assets/img/nb-project-list.jpg', 'assets/img/nb-first-launch.jpg', 'assets/img/nb-index.jpg', 'assets/img/nb-notes.jpg'],
-    demo: 'chat',
     demoUrl: '',
-    video: '',
+    video: ATT + 'af147c97-fd69-4ce3-9bdf-6d4b8c673b98',
   },
   {
     id: 'OpenHarness',
@@ -59,7 +55,6 @@ export const PROJECTS = [
     tech: ['Electron', 'TypeScript', 'node-pty', 'SSE', 'MCP'],
     features: ['自动检测本机 Harness', 'MCP Server 批量注入', 'Skill 扫描、导入与同步', '统一 LLM Provider 配置', '多模型流式对话'],
     palette: ['#ea580c', '#facc15', '#fff7ed', '#1c1917'],
-    demo: 'harness',
     demoUrl: '',
     video: ATT + 'e09ed19b-2022-4435-8ca8-2f2bf976fa09',
   },
@@ -71,7 +66,6 @@ export const PROJECTS = [
     tech: ['React', 'TypeScript', 'Vite', 'FastAPI', 'SQLAlchemy', 'Celery'],
     features: ['文档导入自动出题', '五种题型练习', '错题本', '公开题库与 Fork', '个人模型服务商配置'],
     palette: ['#16a34a', '#a3e635', '#f0fdf4', '#052e16'],
-    demo: 'quiz',
     demoUrl: '',
     video: ATT + '2724287e-5db8-44ab-9c7a-d513438bdd11',
   },
@@ -83,7 +77,6 @@ export const PROJECTS = [
     tech: ['Chrome Extension', 'Manifest V3', 'JavaScript'],
     features: ['修饰键 + 滚轮切换标签页', '自定义键盘快捷键', '修饰键 + 单击关闭标签页', '循环切换', '设置跨设备同步'],
     palette: ['#2563eb', '#f43f5e', '#f8fafc', '#111827'],
-    demo: 'tabs',
     demoUrl: '',
     video: '',
   },
@@ -95,7 +88,6 @@ export const PROJECTS = [
     tech: ['Python', 'FastAPI', 'MCP', 'A2A', 'SSE'],
     features: ['中心编排器 + 专家子 Agent', '13 个内置工具', '三级权限控制', 'SKILL.md 技能系统', '飞书 / QQ 机器人桥接'],
     palette: ['#be123c', '#fb923c', '#ffe4e6', '#1f0a12'],
-    demo: 'chat',
     demoUrl: '',
     video: ATT + 'db0bddde-87e3-456b-8813-bb47f2eef3b5',
   },
@@ -109,7 +101,6 @@ export const PROJECTS = [
     palette: ['#0284c7', '#22d3ee', '#f0f9ff', '#082f49'],
     cover: 'assets/img/lianyu.jpg',
     shots: ['assets/img/lianyu.jpg', 'assets/img/lianyu-2.jpg'],
-    demo: 'bookmarks',
     demoUrl: '',
     video: 'assets/video/lianyu-pro.mp4',
   },
@@ -121,7 +112,6 @@ export const PROJECTS = [
     tech: ['微信小程序', '微信云开发', 'TypeScript', 'Vitest', '视觉大模型'],
     features: ['拍照记录物品位置', '“某个东西在哪”搜索', 'AI 图片识别', '家庭空间与邀请码', '本地 mock 模式'],
     palette: ['#ca8a04', '#fb7185', '#fefce8', '#291a05'],
-    demo: 'finder',
     demoUrl: '',
     video: '',
   },
