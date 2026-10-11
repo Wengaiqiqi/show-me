@@ -191,7 +191,13 @@ function addSculpture(s) {
 const LIGHTMAP_GAIN = Math.PI;
 
 async function loadGallery(layout, onProgress) {
-  const gltf = await new GLTFLoader().loadAsync(layout.model, (e) => e.total && onProgress(e.loaded / e.total));
+  // GitHub Pages 用 gzip 传输时，响应头里的大小是压缩后的，而 loaded 数的是解压后的字节，
+  // 直接相除会超过 100%，所以用 gallery.json 里记下的模型原始大小
+  const total = layout.modelBytes;
+  const gltf = await new GLTFLoader().loadAsync(layout.model, (e) => {
+    const t = total || e.total;
+    if (t) onProgress(Math.min(1, e.loaded / t));
+  });
   const maps = layout.lightmaps || {};
   await Promise.all(Object.entries(maps).map(async ([name, lm]) => {
     const tex = await loader.loadAsync(lm.file);
@@ -662,7 +668,6 @@ async function init() {
     li.onclick = () => { teleport(e); toggleMenu(false); };
     ui.menuList.append(li);
   });
-  document.getElementById('count').textContent = PROJECTS.length;
   tick();
 
   try {

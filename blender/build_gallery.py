@@ -1013,6 +1013,7 @@ def export(lightmaps):
     print('[export]', path, os.path.getsize(path) // 1024, 'KB')
     LAYOUT['lightmaps'] = lightmaps
     LAYOUT['model'] = 'assets/gallery.glb'
+    LAYOUT['modelBytes'] = os.path.getsize(path)
     # 作品按这个顺序上墙：先长廊（进门就能看到），再西展厅、东展厅，最后才用中庭的备用位
     order = {'grand': 0, 'west': 1, 'east': 2, 'atrium': 3, 'music': 4}
     LAYOUT['slots'].sort(key=lambda s: (s['tier'], order[s['room']]))
