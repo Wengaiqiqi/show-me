@@ -996,7 +996,8 @@ def bake(ob, filename):
     enc = np.clip(rgb / scale, 0, 1) ** (1 / 2.2)
     save_jpeg(enc, os.path.join(ASSETS, filename))
     print(f'[bake] saved {filename}, scale={scale:.3f}', flush=True)
-    return dict(file='assets/' + filename, scale=round(scale, 4))
+    # bytes：网页进度条要知道每个文件多大
+    return dict(file='assets/' + filename, scale=round(scale, 4), bytes=os.path.getsize(os.path.join(ASSETS, filename)))
 
 
 def export(lightmaps):

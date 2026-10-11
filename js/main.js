@@ -102,11 +102,11 @@ function addPainting(p, i, slot) {
   // 贴不到画框上，只能在弹窗里看，所以要上墙就得把 mp4 放进 assets/video/
   if (p.video && !/^https?:/.test(p.video)) {
     const v = document.createElement('video');
-    v.src = p.video;
     v.muted = true;
     v.loop = true;
     v.playsInline = true;
-    v.preload = 'metadata';
+    // 进馆前一个字节都不下，把带宽先让给展馆模型；进馆后由 updateWallVideos 决定谁先下载
+    v.preload = 'none';
     entry.videoEl = v;
     const tex = new THREE.VideoTexture(v);
     tex.colorSpace = THREE.SRGBColorSpace;
@@ -197,16 +197,27 @@ function addSculpture(s) {
 const LIGHTMAP_GAIN = Math.PI;
 
 async function loadGallery(layout, onProgress) {
+  // 模型和两张光照贴图同时下载，进度条把三者都算进去（以前只算模型，到 100% 后还要再等贴图）。
   // GitHub Pages 用 gzip 传输时，响应头里的大小是压缩后的，而 loaded 数的是解压后的字节，
-  // 直接相除会超过 100%，所以用 gallery.json 里记下的模型原始大小
-  const total = layout.modelBytes;
-  const gltf = await new GLTFLoader().loadAsync(layout.model, (e) => {
-    const t = total || e.total;
-    if (t) onProgress(Math.min(1, e.loaded / t));
-  });
-  const maps = layout.lightmaps || {};
-  await Promise.all(Object.entries(maps).map(async ([name, lm]) => {
-    const tex = await loader.loadAsync(lm.file);
+  // 所以总量用 gallery.json 里记下的原始大小
+  const maps = Object.entries(layout.lightmaps || {});
+  const sizes = [layout.modelBytes, ...maps.map(([, lm]) => lm.bytes)];
+  const total = sizes.every(Boolean) ? sizes.reduce((a, b) => a + b, 0) : 0;
+  const got = sizes.map(() => 0);
+  const track = (k) => (e) => {
+    got[k] = e.loaded;
+    if (total) onProgress(Math.min(1, got.reduce((a, b) => a + b, 0) / total));
+  };
+  const file = (type) => new THREE.FileLoader().setResponseType(type);
+  const [glb, ...blobs] = await Promise.all([
+    file('arraybuffer').loadAsync(layout.model, track(0)),
+    ...maps.map(([, lm], k) => file('blob').loadAsync(lm.file, track(k + 1))),
+  ]);
+  const gltf = await new GLTFLoader().parseAsync(glb, layout.model.replace(/[^/]*$/, ''));
+  await Promise.all(maps.map(async ([name, lm], k) => {
+    const url = URL.createObjectURL(blobs[k]);
+    const tex = await loader.loadAsync(url);
+    URL.revokeObjectURL(url);
     tex.flipY = false;
     tex.colorSpace = THREE.SRGBColorSpace;
     tex.channel = 1;
@@ -219,6 +230,9 @@ async function loadGallery(layout, onProgress) {
     });
   }));
   scene.add(gltf.scene);
+  // 进馆前先把着色器编译好，免得点「进入展馆」后画面卡住；显卡支持的话在后台并行编译
+  if (renderer.extensions.has('KHR_parallel_shader_compile')) await renderer.compileAsync(scene, camera);
+  else renderer.compile(scene, camera);
 }
 
 // 模型加载失败时，至少铺上地面让人能走动
@@ -255,9 +269,13 @@ function lockPointer() {
 ui.enter.addEventListener('click', () => {
   started = true;
   // 有些浏览器要等用户点过一次才允许自动播放。iOS 还要求每个视频都在这次点击里 play() 过一次，
-  // 之后才允许脚本给它开声音；离得远的下一帧会再被暂停
-  for (const e of paintings) e.videoEl?.play().catch(() => {});
-  startWallVideos();
+  // 之后才允许脚本给它开声音；轮不到的下一帧会再被暂停、停止下载
+  if (!canFade) for (const e of paintings) {
+    if (!e.videoEl) continue;
+    e.videoEl.src = e.p.video;
+    e.videoEl.play().catch(() => {});
+  }
+  wallOn = true;
   enableAudio();
   ui.intro.hidden = true;
   ui.hud.hidden = false;
@@ -376,22 +394,72 @@ const canFade = (() => {
   return v.volume === 0.5;
 })();
 
-// 视频是 1080p 原画质，远处（别的展厅、看不到）的电视先暂停，走近再接着播，省流量也省解码。
-// 手机上更省一点：只播 15 米内最近的两台
+// 视频是 1080p 原画质，网速慢时几台一起下载谁都播不顺。所以带宽排队用：
+// 离你最近、正对着你的那台先下载先播；它整段下载完了，下一台才开始下载。
+// 轮不到的电视停在封面或最后一帧，并且中断下载，不跟正在看的那台抢带宽
 const PLAY_FAR = isTouch ? 15 : 25;
-const MAX_PLAYING = isTouch ? 2 : Infinity;
+const MAX_PLAYING = isTouch ? 2 : 4;
 let wallOn = false;
 
-function startWallVideos() {
-  wallOn = true;
-  for (const e of paintings) e.playing = null; // 让每台电视下一帧重新判断要播还是要停
-}
+const bufferedEnd = (v) => (v.readyState >= 2 && v.buffered.length ? v.buffered.end(v.buffered.length - 1) : 0);
+const fullyLoaded = (v) => bufferedEnd(v) >= v.duration - 0.5;
+// 长片（比如 3 分多钟的 MV）浏览器未必一口气下完，缓冲出一分钟以上就算够了
+const aheadEnough = (v) => fullyLoaded(v) || bufferedEnd(v) - v.currentTime > 60;
 
 function updateWallVideo(e, want) {
-  if (want === e.playing) return;
-  e.playing = want;
-  if (want) e.videoEl.play().catch(() => {});
-  else e.videoEl.pause();
+  const v = e.videoEl;
+  if (want) {
+    if (!v.getAttribute('src')) {
+      v.preload = 'auto';
+      v.src = e.p.video;
+      e.dl = null;
+      if (e.resumeAt) v.addEventListener('loadedmetadata', () => (v.currentTime = e.resumeAt % v.duration), { once: true });
+    }
+    if (v.paused && readyToPlay(e)) v.play().catch(() => {});
+  } else if (v.getAttribute('src')) {
+    if (!v.paused) v.pause();
+    if (!fullyLoaded(v)) {
+      // 停止下载：屏幕上留着最后一帧，下次轮到时从这里接着播（浏览器缓存里已有的部分不用重下）
+      e.resumeAt = v.currentTime;
+      v.removeAttribute('src');
+      v.load();
+    }
+  }
+}
+
+// 网速跟不上码率时先攒缓冲：按眼下的下载速度，剩下的部分能赶在播到之前下完才开播。
+// 宁可晚几秒开始（期间显示封面），也不要播几秒卡一下。
+// iOS 不播放就不下载，量不出速度，等 3 秒还没动静就直接播（电脑上首包慢就继续等）
+function readyToPlay(e) {
+  const v = e.videoEl, now = performance.now() / 1000, end = bufferedEnd(v);
+  if (fullyLoaded(v)) return true;
+  if (!e.dl) e.dl = { t: now, end };
+  const dt = now - e.dl.t;
+  if (dt < 1) return false;
+  const speed = (end - e.dl.end) / dt; // 每秒能下载几秒的视频
+  if (speed >= 1.5) return true;
+  if (speed <= 0) return !canFade && dt > 3;
+  // 刚开始那一下的速度不准，至少量 2 秒再下结论
+  return dt >= 2 && (v.duration - end) / speed <= v.duration - v.currentTime;
+}
+
+// tvs: [entry, 排队距离]。排队距离 = 真实距离，身后的 +10 米，别的展厅的 +8 米；
+// 正在播的那台再让 2 米，免得两台差不多远时来回切换
+function updateWallVideos(tvs) {
+  const rank = ([e, d]) => d - (e.playing ? 2 : 0);
+  tvs.sort((a, b) => rank(a) - rank(b));
+  let allowed = wallOn && !modalOpen;
+  let n = 0;
+  for (const [e] of tvs) {
+    const want = allowed && e.slot.pos.distanceTo(camera.position) < PLAY_FAR && n < MAX_PLAYING;
+    e.playing = want;
+    updateWallVideo(e, want);
+    if (want) {
+      n++;
+      // 前面这台还没下载完，后面的先别抢
+      if (!aheadEnough(e.videoEl)) allowed = false;
+    }
+  }
 }
 
 function enableAudio() {
@@ -549,6 +617,7 @@ const toP = new THREE.Vector3();
 
 let walkable = [];
 let obstacles = [];
+let rooms = [];
 const R = 0.3; // 人的半径
 
 function blocked(x, z) {
@@ -606,6 +675,8 @@ function tick() {
 
   // 找到正在看的画
   camera.getWorldDirection(fwd);
+  const { x: cx, z: cz } = camera.position;
+  const here = rooms.find((r) => cx >= r.x0 && cx <= r.x1 && cz >= r.z0 && cz <= r.z1)?.name;
   let best = null, bestScore = 0;
   let loudest = null, loudLevel = 0;
   for (const e of paintings) {
@@ -616,12 +687,11 @@ function tick() {
     // 大银幕从远一点的地方也能选中
     if (d < Math.max(7, e.slot.w * 1.6) && facing > 0.6 && score > bestScore) { best = e; bestScore = score; }
 
-    if (e.videoEl) tvs.push([e, d]);
+    if (e.videoEl) tvs.push([e, d + (facing > 0 ? 0 : 10) + (e.slot.room === here ? 0 : 8)]);
     const lv = e.tv ? hearLevel(e, d) : 0;
     if (lv > loudLevel) { loudest = e; loudLevel = lv; }
   }
-  tvs.sort((a, b) => a[1] - b[1]);
-  tvs.forEach(([e, d], k) => updateWallVideo(e, wallOn && d < PLAY_FAR && k < MAX_PLAYING));
+  updateWallVideos(tvs);
   tvs.length = 0;
   updateAudio(loudest, loudLevel, dt);
   if (best !== focused) setFocus(best);
@@ -645,6 +715,7 @@ addEventListener('resize', () => {
 async function init() {
   const layout = await (await fetch(LAYOUT_URL)).json();
   walkable = layout.walkable;
+  rooms = layout.rooms;
   obstacles = layout.obstacles;
   const [sx, , sz] = layout.spawn.pos;
   camera.position.set(sx, EYE, sz);
@@ -692,7 +763,6 @@ async function init() {
   }
   ui.enter.disabled = false;
   ui.enter.textContent = '进入展馆';
-  startWallVideos();
   // 调试用：地址后加 ?debug 可以在控制台里用 gallery.camera / gallery.look 摆机位
   if (new URLSearchParams(location.search).has('debug')) window.gallery = { camera, look, paintings, teleport, renderer };
 }
