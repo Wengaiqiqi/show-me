@@ -116,3 +116,18 @@ export const PROJECTS = [
     video: '',
   },
 ].map((p) => ({ ...p, repo: GH + p.id }));
+
+// 音乐作品集展厅：第一首挂在大银幕上，侧墙还有两个位置留给以后的作品
+export const MUSIC = [
+  {
+    id: 'next-token',
+    music: true,
+    title: '下一个 Token',
+    subtitle: '音乐 MV · 3 分 26 秒',
+    desc: '一首写给大模型的歌：从加载权重、向量空间里的星团，到「幻觉」与一个字一个字吐出的句子，用赛博风的画面唱出「预测下一个 token」的过程。',
+    palette: ['#a21caf', '#22d3ee', '#f5d0fe', '#0b0614'],
+    cover: 'assets/img/next-token.jpg',
+    shots: ['assets/img/next-token.jpg', 'assets/img/next-token-2.jpg', 'assets/img/next-token-3.jpg'],
+    video: 'assets/video/next-token.mp4',
+  },
+];

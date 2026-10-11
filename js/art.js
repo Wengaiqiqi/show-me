@@ -87,8 +87,8 @@ export function plaque(project, index) {
   g.fillText(project.title, 28, 62);
   g.font = '400 22px "PingFang SC", "Microsoft YaHei", "Noto Sans SC", "WenQuanYi Zen Hei", sans-serif';
   g.fillStyle = '#57534e';
-  g.fillText(project.tech.slice(0, 3).join(' · '), 30, 104);
-  g.fillText(`No.${String(index + 1).padStart(2, '0')}  ·  走近按 E 观看`, 30, 150);
+  g.fillText(project.music ? project.subtitle : project.tech.slice(0, 3).join(' · '), 30, 104);
+  g.fillText(project.music ? '音乐作品  ·  走近按 E 查看' : `No.${String(index + 1).padStart(2, '0')}  ·  走近按 E 观看`, 30, 150);
   return c;
 }
 
@@ -101,9 +101,20 @@ export function textPanel(lines, { w = 1024, h = 512, bg = '#111', fg = '#f5f5f4
   g.fillRect(0, 0, w, h);
   g.fillStyle = fg;
   g.textAlign = 'center';
-  lines.forEach((t, i) => {
-    g.font = `${i === 0 ? 700 : 400} ${i === 0 ? size : size * 0.45}px "PingFang SC", "Microsoft YaHei", "Noto Sans SC", "WenQuanYi Zen Hei", sans-serif`;
-    g.fillText(t, w / 2, h * 0.42 + i * size * 0.95);
-  });
+  g.textBaseline = 'middle';
+  // 每行的字号和行距；整块文字在牌子上垂直居中，太长的行按宽度缩小，免得出框
+  const rows = lines.map((t, i) => ({ t, px: i === 0 ? size : size * 0.45, weight: i === 0 ? 700 : 400 }));
+  const font = (r) => `${r.weight} ${r.px}px "PingFang SC", "Microsoft YaHei", "Noto Sans SC", "WenQuanYi Zen Hei", sans-serif`;
+  for (const r of rows) {
+    g.font = font(r);
+    r.px *= Math.min(1, (w * 0.9) / g.measureText(r.t).width);
+  }
+  const lh = (r) => r.px * 1.25;
+  let y = (h - rows.reduce((sum, r) => sum + lh(r), 0)) / 2;
+  for (const r of rows) {
+    g.font = font(r);
+    g.fillText(r.t, w / 2, y + lh(r) / 2);
+    y += lh(r);
+  }
   return c;
 }
