@@ -21,10 +21,12 @@
       <p class="eyebrow">翁子良作品集</p>
       <h1>作品馆</h1>
       <ul class="keys">
-        <li><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 行走，<kbd>Shift</kbd> 快走，鼠标转视角</li>
-        <li>宣传片在墙上循环播放，走近哪幅就听到哪幅的声音；按 <kbd>R</kbd> 从头重播，按 <kbd>E</kbd> 或单击 查看项目介绍</li>
-        <li><kbd>M</kbd> 展品目录，<kbd>Esc</kbd> 退出</li>
-        <li class="touch-only">手机：左下拖动行走，右侧滑动转头，走近点下方按钮</li>
+        <li class="desk-only"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 行走，<kbd>Shift</kbd> 快走，鼠标转视角</li>
+        <li class="desk-only">宣传片在墙上循环播放，走近哪幅就听到哪幅的声音；按 <kbd>R</kbd> 从头重播，按 <kbd>E</kbd> 或单击 查看项目介绍</li>
+        <li class="desk-only"><kbd>M</kbd> 展品目录，<kbd>Esc</kbd> 退出</li>
+        <li class="touch-only">左下拖动摇杆行走，右边滑动转头</li>
+        <li class="touch-only">宣传片在墙上循环播放，走近哪幅就听到哪幅的声音</li>
+        <li class="touch-only">走近作品，点下方按钮看介绍或重播；右上角「目录」可以直接传送</li>
       </ul>
       <button id="enter" class="btn big" disabled>展馆布置中…</button>
     </div>
@@ -33,7 +35,7 @@
   <div id="hud" hidden>
     <div id="crosshair"></div>
     <div id="prompt" hidden></div>
-    <button id="menu-btn" class="chip">☰ 目录 (M)</button>
+    <button id="menu-btn" class="chip">☰ 目录<span class="desk-only"> (M)</span></button>
   </div>
 
   <div id="mobile" hidden><div id="pad"><div id="stick"></div></div></div>
@@ -59,7 +61,7 @@
         </div>
         <div class="row">
           <a id="modal-repo" class="chip" target="_blank" rel="noopener">GitHub ↗</a>
-          <button id="modal-close" class="chip">关闭 (Esc)</button>
+          <button id="modal-close" class="chip">关闭<span class="desk-only"> (Esc)</span></button>
         </div>
       </header>
       <div id="modal-body"></div>

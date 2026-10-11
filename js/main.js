@@ -12,7 +12,9 @@ const EYE = 1.65;
 // ---------------- 渲染器与场景 ----------------
 const canvas = document.getElementById('scene');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+// 手机屏幕像素密度很高，按 3 倍渲染太吃力，最多按 1.5 倍
+const isTouch = matchMedia('(pointer: coarse)').matches;
+renderer.setPixelRatio(Math.min(devicePixelRatio, isTouch ? 1.5 : 2));
 renderer.setSize(innerWidth, innerHeight);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -24,6 +26,10 @@ const pmrem = new THREE.PMREMGenerator(renderer);
 scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
 
 const camera = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.05, 150);
+// 手机竖屏时画面很窄，把视角调大一点，左右能多看到一些
+const fitFov = () => (camera.fov = camera.aspect < 1 ? 80 : 70);
+fitFov();
+camera.updateProjectionMatrix();
 const look = { yaw: 0, pitch: 0 };
 let spawnYaw = 0;
 
@@ -239,7 +245,6 @@ const ui = {
   menuList: document.getElementById('menu-list'),
   mobile: document.getElementById('mobile'),
 };
-const isTouch = matchMedia('(pointer: coarse)').matches;
 let started = false;
 let modalOpen = false;
 let menuOpen = false;
@@ -249,7 +254,9 @@ function lockPointer() {
 }
 ui.enter.addEventListener('click', () => {
   started = true;
-  // 有些浏览器要等用户点过一次才允许自动播放
+  // 有些浏览器要等用户点过一次才允许自动播放。iOS 还要求每个视频都在这次点击里 play() 过一次，
+  // 之后才允许脚本给它开声音；离得远的下一帧会再被暂停
+  for (const e of paintings) e.videoEl?.play().catch(() => {});
   startWallVideos();
   enableAudio();
   ui.intro.hidden = true;
@@ -369,17 +376,18 @@ const canFade = (() => {
   return v.volume === 0.5;
 })();
 
-// 视频是 1080p 原画质，远处（别的展厅、看不到）的电视先暂停，走近再接着播，省流量也省解码
-const PLAY_FAR = 25;
+// 视频是 1080p 原画质，远处（别的展厅、看不到）的电视先暂停，走近再接着播，省流量也省解码。
+// 手机上更省一点：只播 15 米内最近的两台
+const PLAY_FAR = isTouch ? 15 : 25;
+const MAX_PLAYING = isTouch ? 2 : Infinity;
 let wallOn = false;
 
 function startWallVideos() {
   wallOn = true;
-  for (const e of paintings) e.playing = false; // 让每台电视下一帧重新判断要不要播
+  for (const e of paintings) e.playing = null; // 让每台电视下一帧重新判断要播还是要停
 }
 
-function updateWallVideo(e, d) {
-  const want = wallOn && d < PLAY_FAR;
+function updateWallVideo(e, want) {
   if (want === e.playing) return;
   e.playing = want;
   if (want) e.videoEl.play().catch(() => {});
@@ -569,9 +577,11 @@ function setFocus(entry) {
   const t = focused.p.title;
   const canReplay = !!focused.tv;
   ui.prompt.innerHTML = isTouch
-    ? `<button data-act="intro">「${t}」${kindName(focused.p)}介绍</button>${canReplay ? '<button data-act="replay">↻ 重新播放</button>' : ''}`
+    ? `<button data-act="intro">📖 ${t}</button>${canReplay ? '<button data-act="replay">↻ 重播</button>' : ''}`
     : `<button data-act="intro">按 <kbd>E</kbd> 查看「${t}」${kindName(focused.p)}介绍</button>${canReplay ? '<button data-act="replay">按 <kbd>R</kbd> 重新播放</button>' : ''}`;
 }
+
+const tvs = []; // 每帧按距离排序的电视，决定哪几台在播
 
 function tick() {
   const dt = Math.min(clock.getDelta(), 0.05);
@@ -606,10 +616,13 @@ function tick() {
     // 大银幕从远一点的地方也能选中
     if (d < Math.max(7, e.slot.w * 1.6) && facing > 0.6 && score > bestScore) { best = e; bestScore = score; }
 
-    if (e.videoEl) updateWallVideo(e, d);
+    if (e.videoEl) tvs.push([e, d]);
     const lv = e.tv ? hearLevel(e, d) : 0;
     if (lv > loudLevel) { loudest = e; loudLevel = lv; }
   }
+  tvs.sort((a, b) => a[1] - b[1]);
+  tvs.forEach(([e, d], k) => updateWallVideo(e, wallOn && d < PLAY_FAR && k < MAX_PLAYING));
+  tvs.length = 0;
   updateAudio(loudest, loudLevel, dt);
   if (best !== focused) setFocus(best);
   if (!started) look.yaw = spawnYaw + Math.sin(performance.now() / 4000) * 0.25;
@@ -623,6 +636,7 @@ function tick() {
 
 addEventListener('resize', () => {
   camera.aspect = innerWidth / innerHeight;
+  fitFov();
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
 });
