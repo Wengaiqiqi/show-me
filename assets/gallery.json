@@ -1083,11 +1083,13 @@
  "lightmaps": {
   "Gallery": {
    "file": "assets/gallery-light.jpg",
-   "scale": 8.5767
+   "scale": 8.5767,
+   "bytes": 544366
   },
   "Details": {
    "file": "assets/gallery-light-detail.jpg",
-   "scale": 10.2605
+   "scale": 10.2605,
+   "bytes": 893640
   }
  },
  "model": "assets/gallery.glb",
