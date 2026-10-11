@@ -100,7 +100,7 @@ function addPainting(p, i, slot) {
     v.muted = true;
     v.loop = true;
     v.playsInline = true;
-    v.preload = 'auto';
+    v.preload = 'metadata';
     entry.videoEl = v;
     const tex = new THREE.VideoTexture(v);
     tex.colorSpace = THREE.SRGBColorSpace;
@@ -108,10 +108,9 @@ function addPainting(p, i, slot) {
     v.addEventListener('playing', () => {
       entry.tv = true;
       if (focused === entry) setFocus(entry);
-      artMat.map = artMat.emissiveMap = tex;
-      // 屏幕自己发光，压低漫反射，免得射灯在白底画面上打出一块光斑
-      artMat.color.setScalar(0.2); artMat.roughness = 1; artMat.emissiveIntensity = 0.85;
-      artMat.needsUpdate = true;
+      // 屏幕直接显示视频原色：不受射灯影响，也不走色调映射（ACES 会把画面压灰、发白）
+      art.material = new THREE.MeshBasicMaterial({ map: tex, toneMapped: false });
+      artMat.dispose();
     }, { once: true });
   }
   paintings.push(entry);
@@ -329,8 +328,21 @@ const canFade = (() => {
   return v.volume === 0.5;
 })();
 
+// 视频是 1080p 原画质，远处（别的展厅、看不到）的电视先暂停，走近再接着播，省流量也省解码
+const PLAY_FAR = 25;
+let wallOn = false;
+
 function startWallVideos() {
-  for (const e of paintings) e.videoEl?.play().catch(() => {});
+  wallOn = true;
+  for (const e of paintings) e.playing = false; // 让每台电视下一帧重新判断要不要播
+}
+
+function updateWallVideo(e, d) {
+  const want = wallOn && d < PLAY_FAR;
+  if (want === e.playing) return;
+  e.playing = want;
+  if (want) e.videoEl.play().catch(() => {});
+  else e.videoEl.pause();
 }
 
 function enableAudio() {
@@ -555,6 +567,7 @@ function tick() {
     const score = facing - d / 20;
     if (d < 7 && facing > 0.6 && score > bestScore) { best = e; bestScore = score; }
 
+    if (e.videoEl) updateWallVideo(e, d);
     if (e.tv && d < nearestDist) { nearest = e; nearestDist = d; }
   }
   updateAudio(nearest, nearestDist, dt);
