@@ -34,7 +34,14 @@ kbd { display: inline-block; min-width: 1.6em; padding: 0 .35em; margin: 0 .1em;
 #intro h1 { font-size: 48px; margin: 4px 0 8px; letter-spacing: .1em; }
 .keys { padding-left: 0; list-style: none; color: var(--muted); line-height: 2; font-size: 14px; }
 .touch-only { display: none; }
-@media (pointer: coarse) { .touch-only { display: list-item; } }
+@media (pointer: coarse) {
+  .touch-only { display: list-item; }
+  .desk-only { display: none; }
+  /* 提示按钮挪到摇杆上方，不挡手指 */
+  #prompt { bottom: calc(160px + env(safe-area-inset-bottom)); }
+  #prompt button { white-space: nowrap; max-width: 62vw; overflow: hidden; text-overflow: ellipsis; }
+  #menu-btn { top: calc(12px + env(safe-area-inset-top)); right: calc(12px + env(safe-area-inset-right)); }
+}
 
 /* HUD */
 #crosshair { position: fixed; left: 50%; top: 50%; width: 6px; height: 6px; margin: -3px; border-radius: 50%; background: rgba(255,255,255,.75); box-shadow: 0 0 0 2px rgba(0,0,0,.3); pointer-events: none; }
@@ -50,7 +57,7 @@ kbd { display: inline-block; min-width: 1.6em; padding: 0 .35em; margin: 0 .1em;
 
 /* 触屏摇杆 */
 #mobile { position: fixed; inset: 0; touch-action: none; }
-#pad { position: absolute; left: 28px; bottom: 28px; width: 110px; height: 110px; border-radius: 50%; border: 2px solid rgba(255,255,255,.25); display: grid; place-items: center; }
+#pad { position: absolute; left: calc(28px + env(safe-area-inset-left)); bottom: calc(28px + env(safe-area-inset-bottom)); width: 110px; height: 110px; border-radius: 50%; border: 2px solid rgba(255,255,255,.25); display: grid; place-items: center; }
 #stick { width: 46px; height: 46px; border-radius: 50%; background: rgba(255,255,255,.35); }
 #hud { position: relative; z-index: 2; }
 #mobile { z-index: 1; }
