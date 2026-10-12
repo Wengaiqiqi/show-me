@@ -110,12 +110,13 @@ function addPainting(p, i, slot) {
     entry.videoEl = v;
     const tex = new THREE.VideoTexture(v);
     tex.colorSpace = THREE.SRGBColorSpace;
+    // 屏幕直接显示视频原色：不受射灯影响，也不走色调映射（ACES 会把画面压灰、发白）
+    entry.tvMat = new THREE.MeshBasicMaterial({ map: tex, toneMapped: false });
     // 出画面之后再换上视频贴图，加载期间先显示封面
     v.addEventListener('playing', () => {
       entry.tv = true;
       if (focused === entry) setFocus(entry);
-      // 屏幕直接显示视频原色：不受射灯影响，也不走色调映射（ACES 会把画面压灰、发白）
-      art.material = new THREE.MeshBasicMaterial({ map: tex, toneMapped: false });
+      art.material = entry.tvMat;
       artMat.dispose();
     }, { once: true });
   }
@@ -230,9 +231,14 @@ async function loadGallery(layout, onProgress) {
     });
   }));
   scene.add(gltf.scene);
-  // 进馆前先把着色器编译好，免得点「进入展馆」后画面卡住；显卡支持的话在后台并行编译
+  // 进馆前先把着色器编译好，免得点「进入展馆」后画面卡住；显卡支持的话在后台并行编译。
+  // 视频画面的材质也借一块屏幕先编译，第一次走近电视时就不会卡一下
+  const tv = paintings.find((e) => e.tvMat && !e.tv);
+  const cover = tv?.art.material;
+  if (tv) tv.art.material = tv.tvMat;
   if (renderer.extensions.has('KHR_parallel_shader_compile')) await renderer.compileAsync(scene, camera);
   else renderer.compile(scene, camera);
+  if (tv && !tv.tv) tv.art.material = cover;
 }
 
 // 模型加载失败时，至少铺上地面让人能走动
@@ -395,10 +401,11 @@ const canFade = (() => {
 })();
 
 // 视频是 1080p 原画质，网速慢时几台一起下载谁都播不顺。所以带宽排队用：
+// （手机上每台 1080p 都要解码、每帧传进显卡，同时播两台会掉帧，所以只播眼前这一台）
 // 离你最近、正对着你的那台先下载先播；它整段下载完了，下一台才开始下载。
 // 轮不到的电视停在封面或最后一帧，并且中断下载，不跟正在看的那台抢带宽
 const PLAY_FAR = isTouch ? 15 : 25;
-const MAX_PLAYING = isTouch ? 2 : 4;
+const MAX_PLAYING = isTouch ? 1 : 4;
 let wallOn = false;
 
 const bufferedEnd = (v) => (v.readyState >= 2 && v.buffered.length ? v.buffered.end(v.buffered.length - 1) : 0);
