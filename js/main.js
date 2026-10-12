@@ -278,7 +278,7 @@ ui.enter.addEventListener('click', () => {
   // 之后才允许脚本给它开声音；轮不到的下一帧会再被暂停、停止下载
   if (!canFade) for (const e of paintings) {
     if (!e.videoEl) continue;
-    e.videoEl.src = e.p.video;
+    e.videoEl.src = wallSrc(e.p);
     e.videoEl.play().catch(() => {});
   }
   wallOn = true;
@@ -405,6 +405,8 @@ const canFade = (() => {
 // 离你最近、正对着你的那台先下载先播；它整段下载完了，下一台才开始下载。
 // 轮不到的电视停在封面或最后一帧，并且中断下载，不跟正在看的那台抢带宽
 const PLAY_FAR = isTouch ? 15 : 25;
+// 手机墙面播 720p 版：手机画布宽不到 1300 像素，看不出差别，解码和传进显卡的量少一半多
+const wallSrc = (p) => (isTouch && p.videoMobile) || p.video;
 const MAX_PLAYING = isTouch ? 1 : 4;
 let wallOn = false;
 
@@ -418,7 +420,7 @@ function updateWallVideo(e, want) {
   if (want) {
     if (!v.getAttribute('src')) {
       v.preload = 'auto';
-      v.src = e.p.video;
+      v.src = wallSrc(e.p);
       e.dl = null;
       if (e.resumeAt) v.addEventListener('loadedmetadata', () => (v.currentTime = e.resumeAt % v.duration), { once: true });
     }

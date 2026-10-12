@@ -1,6 +1,7 @@
 // 展品清单：每个公开仓库一幅画。
 // 字段说明：
 //   video    宣传片地址。放在 assets/video/ 下的 mp4 会像电视一样在画框上一直循环播放；GitHub 附件地址只能在弹窗里播放
+//   videoMobile  手机墙面用的 720p 版（手机屏幕显示不出 1080p 的细节，解码更省）；弹窗和电脑端仍播 video
 //   demoUrl  已部署的在线地址；填上后项目介绍里会出现「在线体验」按钮
 //   cover    画框上的画面；不填时自动生成一幅抽象画
 //   shots    没有宣传片时，在「宣传片」页里轮播的截图
@@ -33,6 +34,7 @@ export const PROJECTS = [
     palette: ['#7c3aed', '#f472b6', '#fde68a', '#1e1b4b'],
     demoUrl: '',
     video: 'assets/video/kexi.mp4',
+    videoMobile: 'assets/video/720/kexi.mp4',
   },
   {
     id: 'MyNotebookLM',
@@ -46,6 +48,7 @@ export const PROJECTS = [
     shots: ['assets/img/nb-project-list.jpg', 'assets/img/nb-first-launch.jpg', 'assets/img/nb-index.jpg', 'assets/img/nb-notes.jpg'],
     demoUrl: '',
     video: 'assets/video/mynotebooklm.mp4',
+    videoMobile: 'assets/video/720/mynotebooklm.mp4',
   },
   {
     id: 'OpenHarness',
@@ -57,6 +60,7 @@ export const PROJECTS = [
     palette: ['#ea580c', '#facc15', '#fff7ed', '#1c1917'],
     demoUrl: '',
     video: 'assets/video/openharness.mp4',
+    videoMobile: 'assets/video/720/openharness.mp4',
   },
   {
     id: 'Practice-Grind',
@@ -68,6 +72,7 @@ export const PROJECTS = [
     palette: ['#16a34a', '#a3e635', '#f0fdf4', '#052e16'],
     demoUrl: '',
     video: 'assets/video/practice-grind.mp4',
+    videoMobile: 'assets/video/720/practice-grind.mp4',
   },
   {
     id: 'Tab_Scroller',
@@ -90,6 +95,7 @@ export const PROJECTS = [
     palette: ['#be123c', '#fb923c', '#ffe4e6', '#1f0a12'],
     demoUrl: '',
     video: 'assets/video/ww-agent.mp4',
+    videoMobile: 'assets/video/720/ww-agent.mp4',
   },
   {
     id: 'lianyu-pro',
@@ -103,6 +109,7 @@ export const PROJECTS = [
     shots: ['assets/img/lianyu.jpg', 'assets/img/lianyu-2.jpg'],
     demoUrl: '',
     video: 'assets/video/lianyu-pro.mp4',
+    videoMobile: 'assets/video/720/lianyu-pro.mp4',
   },
   {
     id: 'Household-Item-Finder',
