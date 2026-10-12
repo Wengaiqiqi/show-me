@@ -6,6 +6,18 @@
   <title>翁子良的作品馆</title>
   <meta name="description" content="走进 3D 艺术馆，逛一逛 Wengaiqiqi 的全部公开项目。" />
   <link rel="stylesheet" href="css/style.css" />
+  <!-- 展馆模型和光照贴图最大，不等脚本加载完就开始下载（文件名要和 assets/gallery.json 一致） -->
+  <link rel="preload" href="assets/gallery.json" as="fetch" crossorigin />
+  <link rel="preload" href="assets/gallery.glb" as="fetch" crossorigin />
+  <link rel="preload" href="assets/gallery-light.webp" as="fetch" crossorigin />
+  <link rel="preload" href="assets/gallery-light-detail.webp" as="fetch" crossorigin />
+  <link rel="modulepreload" href="vendor/three/build/three.module.min.js" />
+  <link rel="modulepreload" href="vendor/three/examples/jsm/loaders/GLTFLoader.js" />
+  <link rel="modulepreload" href="vendor/three/examples/jsm/utils/BufferGeometryUtils.js" />
+  <link rel="modulepreload" href="vendor/three/examples/jsm/libs/meshopt_decoder.module.js" />
+  <link rel="modulepreload" href="vendor/three/examples/jsm/environments/RoomEnvironment.js" />
+  <link rel="modulepreload" href="js/projects.js" />
+  <link rel="modulepreload" href="js/art.js" />
   <script type="importmap">
     { "imports": {
       "three": "./vendor/three/build/three.module.min.js",

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { PROJECTS, MUSIC } from './projects.js';
 import { abstractPainting, plaque, textPanel } from './art.js';
 
@@ -46,6 +47,7 @@ function canvasTex(c) {
 
 // ---------------- 画作 ----------------
 const loader = new THREE.TextureLoader();
+const afterLoad = []; // 展馆模型加载完之后再做的事
 const paintings = [];
 const sculptures = [];
 const frameMat = new THREE.MeshStandardMaterial({ color: '#16120f', roughness: 0.35, metalness: 0.3 });
@@ -83,13 +85,12 @@ function addPainting(p, i, slot) {
   const gen = canvasTex(abstractPainting(p));
   artMat.map = gen;
   artMat.emissiveMap = gen;
-  if (p.cover) {
-    loader.load(p.cover, (t) => {
-      t.colorSpace = THREE.SRGBColorSpace;
-      artMat.map = artMat.emissiveMap = t;
-      artMat.needsUpdate = true;
-    });
-  }
+  // 封面等展馆模型下载完再加载，不跟模型抢带宽
+  if (p.cover) afterLoad.push(() => loader.load(p.cover, (t) => {
+    t.colorSpace = THREE.SRGBColorSpace;
+    artMat.map = artMat.emissiveMap = t;
+    artMat.needsUpdate = true;
+  }));
 
   const pl = new THREE.Mesh(new THREE.PlaneGeometry(0.72, 0.27), new THREE.MeshStandardMaterial({ map: canvasTex(plaque(p, i)), roughness: 0.8 }));
   pl.position.set(slot.w / 2 + 0.65, -slot.h / 2 + 0.35, 0.02);
@@ -214,7 +215,8 @@ async function loadGallery(layout, onProgress) {
     file('arraybuffer').loadAsync(layout.model, track(0)),
     ...maps.map(([, lm], k) => file('blob').loadAsync(lm.file, track(k + 1))),
   ]);
-  const gltf = await new GLTFLoader().parseAsync(glb, layout.model.replace(/[^/]*$/, ''));
+  // 模型几何体用 meshopt 压缩过（blender/compress_assets.py），这里解压
+  const gltf = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).parseAsync(glb, layout.model.replace(/[^/]*$/, ''));
   await Promise.all(maps.map(async ([name, lm], k) => {
     const url = URL.createObjectURL(blobs[k]);
     const tex = await loader.loadAsync(url);
@@ -452,10 +454,10 @@ function readyToPlay(e) {
   return dt >= 2 && (v.duration - end) / speed <= v.duration - v.currentTime;
 }
 
-// tvs: [entry, 排队距离]。排队距离 = 真实距离，身后的 +10 米，别的展厅的 +8 米；
-// 正在播的那台再让 2 米，免得两台差不多远时来回切换
+// tvs: [entry, 排队距离]。排队距离 = 真实距离，别的展厅的 +8 米；
+// 只看位置不看朝向：转头不会让电视来回停下又重新缓冲。正在播的那台再让 3 米，免得两台差不多远时来回切换
 function updateWallVideos(tvs) {
-  const rank = ([e, d]) => d - (e.playing ? 2 : 0);
+  const rank = ([e, d]) => d - (e.playing ? 3 : 0);
   tvs.sort((a, b) => rank(a) - rank(b));
   let allowed = wallOn && !modalOpen;
   let n = 0;
@@ -696,7 +698,7 @@ function tick() {
     // 大银幕从远一点的地方也能选中
     if (d < Math.max(7, e.slot.w * 1.6) && facing > 0.6 && score > bestScore) { best = e; bestScore = score; }
 
-    if (e.videoEl) tvs.push([e, d + (facing > 0 ? 0 : 10) + (e.slot.room === here ? 0 : 8)]);
+    if (e.videoEl) tvs.push([e, d + (e.slot.room === here ? 0 : 8)]);
     const lv = e.tv ? hearLevel(e, d) : 0;
     if (lv > loudLevel) { loudest = e; loudLevel = lv; }
   }
@@ -772,6 +774,7 @@ async function init() {
   }
   ui.enter.disabled = false;
   ui.enter.textContent = '进入展馆';
+  afterLoad.forEach((f) => f());
   // 调试用：地址后加 ?debug 可以在控制台里用 gallery.camera / gallery.look 摆机位
   if (new URLSearchParams(location.search).has('debug')) window.gallery = { camera, look, paintings, teleport, renderer };
 }

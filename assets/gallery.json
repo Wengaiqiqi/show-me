@@ -1082,16 +1082,16 @@
  },
  "lightmaps": {
   "Gallery": {
-   "file": "assets/gallery-light.jpg",
+   "file": "assets/gallery-light.webp",
    "scale": 8.5767,
-   "bytes": 544366
+   "bytes": 203960
   },
   "Details": {
-   "file": "assets/gallery-light-detail.jpg",
+   "file": "assets/gallery-light-detail.webp",
    "scale": 10.2605,
-   "bytes": 893640
+   "bytes": 523306
   }
  },
  "model": "assets/gallery.glb",
- "modelBytes": 2542372
+ "modelBytes": 856244
 }
