@@ -37,6 +37,11 @@
   blender -b -P blender/build_gallery.py      # 或者 pip install bpy 之后：python blender/build_gallery.py
   ```
   会写出 `assets/gallery.glb`、`assets/gallery-light.jpg`、`assets/gallery-light-detail.jpg` 和 `assets/gallery.json`（画位、碰撞区域、出生点）。默认 2048 光照贴图 × 256 采样，4 核 CPU 大约半小时；调试时可以 `LM_SIZE=1024 SAMPLES=64` 先看效果。
+- **导出后压缩**（网站加载快一半，画面看不出差别）：
+  ```bash
+  python3 blender/compress_assets.py          # 需要 Pillow 和 Node（npx gltfpack）
+  ```
+  模型里的贴图转 WebP、几何体用 meshopt 压缩，光照贴图转成 `.webp`，并更新 `gallery.json`。`index.html` 里预加载了这几个文件，文件名要保持一致。
 
 ## 添加 / 修改作品
 

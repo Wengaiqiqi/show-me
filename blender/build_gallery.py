@@ -17,6 +17,8 @@
   gallery-light.jpg     烘焙好的光照贴图（第二套 UV）
   gallery.json          画位、灯位、可行走区域、障碍物、出生点等布局数据
 
+导出后再跑 python3 blender/compress_assets.py 压缩模型和光照贴图（网页用的是压缩后的版本）。
+
 所有坐标都按网页（Three.js）坐标书写：x 向右、y 向上、z 朝向入口；导出时换算成 Blender 的 Z 轴向上。
 """
 import json
@@ -1051,6 +1053,7 @@ def main():
     if os.environ.get('SAVE_BLEND') == '1':
         bpy.ops.wm.save_as_mainfile(filepath=os.path.join(HERE, 'gallery.blend'))
     print(f'[done] {time.time() - t0:.0f}s')
+    print('[next] 运行 python3 blender/compress_assets.py 压缩模型和光照贴图')
 
 
 main()
