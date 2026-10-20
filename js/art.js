@@ -74,7 +74,7 @@ export function abstractPainting(project, w = 1024, h = 640) {
   return c;
 }
 
-export function plaque(project, index) {
+export function plaque(project, index, total) {
   const w = 512, h = 192;
   const c = document.createElement('canvas');
   c.width = w;
@@ -88,7 +88,8 @@ export function plaque(project, index) {
   g.font = '400 22px "PingFang SC", "Microsoft YaHei", "Noto Sans SC", "WenQuanYi Zen Hei", sans-serif';
   g.fillStyle = '#57534e';
   g.fillText(project.music ? project.subtitle : project.tech.slice(0, 3).join(' · '), 30, 104);
-  g.fillText(project.music ? '音乐作品  ·  走近按 E 查看' : `No.${String(index + 1).padStart(2, '0')}  ·  走近按 E 观看`, 30, 150);
+  const order = total > 1 ? ` ${index + 1}/${total}` : '';
+  g.fillText(project.music ? `艺术作品${order}  ·  走近按 E 查看` : `No.${String(index + 1).padStart(2, '0')}  ·  走近按 E 观看`, 30, 150);
   return c;
 }
 
