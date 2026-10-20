@@ -22,7 +22,8 @@ export const PROJECTS = [
     cover: 'assets/img/industrial.jpg',
     shots: ['assets/img/industrial.jpg'],
     demoUrl: '',
-    video: '',
+    video: 'assets/video/idip.mp4',
+    videoMobile: 'assets/video/720/idip.mp4',
   },
   {
     id: 'EduCipher',
@@ -124,7 +125,7 @@ export const PROJECTS = [
   },
 ].map((p) => ({ ...p, repo: GH + p.id }));
 
-// 音乐作品集展厅：第一首挂在大银幕上，侧墙还有两个位置留给以后的作品
+// 艺术作品集展厅：这里的作品按顺序在大银幕上轮播（播完自动接下一部，按 Q 换下一部），侧墙还有两个位置留给以后
 export const MUSIC = [
   {
     id: 'next-token',
@@ -135,5 +136,16 @@ export const MUSIC = [
     palette: ['#a21caf', '#22d3ee', '#f5d0fe', '#0b0614'],
     cover: 'assets/img/next-token.jpg',
     video: 'assets/video/next-token.mp4',
+  },
+  {
+    id: 'nanning',
+    music: true,
+    title: '南宁这几年',
+    subtitle: '像素动画 · 3 分 22 秒',
+    desc: '一段像素风的 RPG 式回忆：九月拎着行李箱走出南宁站，室友随口一句「友仔」成了最暖的语言；糖水、粉饺、芒果酸嘢，邕江边的晚霞和大桥，串起在南宁的这几年。',
+    palette: ['#f97316', '#3b82f6', '#fde68a', '#1e1b4b'],
+    cover: 'assets/img/nanning.jpg',
+    video: 'assets/video/nanning.mp4',
+    videoMobile: 'assets/video/720/nanning.mp4',
   },
 ];

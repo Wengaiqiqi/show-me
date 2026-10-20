@@ -78,7 +78,7 @@ function addSpot(slot) {
   return spot;
 }
 
-function addPainting(p, i, slot) {
+function addPainting(p, i, slot, playlist) {
   const artMat = new THREE.MeshStandardMaterial({ roughness: 0.6, emissive: '#ffffff', emissiveIntensity: 0.08 });
   const { g, art } = frameGroup(slot, artMat);
 
@@ -92,19 +92,21 @@ function addPainting(p, i, slot) {
     artMat.needsUpdate = true;
   }));
 
-  const pl = new THREE.Mesh(new THREE.PlaneGeometry(0.72, 0.27), new THREE.MeshStandardMaterial({ map: canvasTex(plaque(p, i)), roughness: 0.8 }));
+  const pl = new THREE.Mesh(new THREE.PlaneGeometry(0.72, 0.27), new THREE.MeshStandardMaterial({ map: canvasTex(plaque(p, i, playlist?.length)), roughness: 0.8 }));
   pl.position.set(slot.w / 2 + 0.65, -slot.h / 2 + 0.35, 0.02);
   g.add(pl);
 
   const pos = new THREE.Vector3(...slot.pos);
   const normal = new THREE.Vector3(...slot.normal);
-  const entry = { p, i, group: g, art, artMat, slot: { ...slot, pos, normal }, spot: addSpot(slot), videoEl: null };
+  const entry = { p, i, group: g, art, artMat, plaque: pl, playlist, slot: { ...slot, pos, normal }, spot: addSpot(slot), videoEl: null };
   // 网站里自带的宣传片像墙上的电视一样一直循环播放。GitHub 附件地址不允许跨域读取画面，
   // 贴不到画框上，只能在弹窗里看，所以要上墙就得把 mp4 放进 assets/video/
   if (p.video && !/^https?:/.test(p.video)) {
     const v = document.createElement('video');
     v.muted = true;
-    v.loop = true;
+    // 轮播的大银幕播完一部接下一部，其余电视单片循环
+    v.loop = !(playlist?.length > 1);
+    if (!v.loop) v.addEventListener('ended', () => playWork(entry, entry.pick + 1));
     v.playsInline = true;
     // 进馆前一个字节都不下，把带宽先让给展馆模型；进馆后由 updateWallVideos 决定谁先下载
     v.preload = 'none';
@@ -122,6 +124,26 @@ function addPainting(p, i, slot) {
     }, { once: true });
   }
   paintings.push(entry);
+  return entry;
+}
+
+// 轮播屏换到第 k 部作品：铭牌、介绍、视频都跟着换
+function playWork(e, k) {
+  const list = e.playlist;
+  e.pick = (k + list.length) % list.length;
+  const p = (e.p = list[e.pick]);
+  const m = e.plaque.material;
+  m.map.dispose();
+  m.map = canvasTex(plaque(p, e.pick, list.length));
+  m.needsUpdate = true;
+  e.resumeAt = 0;
+  e.dl = null;
+  // 正在下载 / 播放的话直接换片，由 updateWallVideo 等缓冲够了再开播；没轮到的等轮到时再加载
+  if (e.videoEl.getAttribute('src')) {
+    e.videoEl.src = wallSrc(p);
+    e.videoEl.pause();
+  }
+  if (focused === e) setFocus(e);
 }
 
 // 作品比画位少时，空着的画框挂一幅「敬请期待」
@@ -319,6 +341,11 @@ addEventListener('keydown', (e) => {
   if (menuOpen && e.key === 'Escape') return toggleMenu(false);
   if (e.key.toLowerCase() === 'e' && focused) return openModal(focused);
   if (e.key.toLowerCase() === 'r' && focused) return replay(focused);
+  // Q：艺术作品集的大银幕换下一部（看着它，或者人在放映厅里都行）
+  if (e.key.toLowerCase() === 'q') {
+    const s = focused?.playlist ? focused : paintings.find((x) => x.playlist && x.slot.pos.distanceTo(camera.position) < hearing(x)[0]);
+    if (s) return playWork(s, s.pick + 1);
+  }
   keys.add(e.code);
 });
 addEventListener('keyup', (e) => keys.delete(e.code));
@@ -360,6 +387,7 @@ ui.mobile.addEventListener('touchend', (e) => {
 ui.prompt.addEventListener('click', (e) => {
   if (!focused) return;
   if (e.target.closest('[data-act="replay"]')) replay(focused);
+  else if (e.target.closest('[data-act="next"]')) playWork(focused, focused.pick + 1);
   else openModal(focused);
 });
 
@@ -656,9 +684,10 @@ function setFocus(entry) {
   if (!focused) return;
   const t = focused.p.title;
   const canReplay = !!focused.tv;
+  const canNext = focused.playlist?.length > 1;
   ui.prompt.innerHTML = isTouch
-    ? `<button data-act="intro">📖 ${t}</button>${canReplay ? '<button data-act="replay">↻ 重播</button>' : ''}`
-    : `<button data-act="intro">按 <kbd>E</kbd> 查看「${t}」${kindName(focused.p)}介绍</button>${canReplay ? '<button data-act="replay">按 <kbd>R</kbd> 重新播放</button>' : ''}`;
+    ? `<button data-act="intro">📖 ${t}</button>${canReplay ? '<button data-act="replay">↻ 重播</button>' : ''}${canNext ? '<button data-act="next">⏭ 下一部</button>' : ''}`
+    : `<button data-act="intro">按 <kbd>E</kbd> 查看「${t}」${kindName(focused.p)}介绍</button>${canReplay ? '<button data-act="replay">按 <kbd>R</kbd> 重新播放</button>' : ''}${canNext ? '<button data-act="next">按 <kbd>Q</kbd> 下一部</button>' : ''}`;
 }
 
 const tvs = []; // 每帧按距离排序的电视，决定哪几台在播
@@ -739,9 +768,9 @@ async function init() {
   if (PROJECTS.length > slots.length) console.warn(`画位只有 ${slots.length} 个，多出的 ${PROJECTS.length - slots.length} 件作品没有上墙`);
   PROJECTS.slice(0, slots.length).forEach((p, i) => addPainting(p, i, slots[i]));
   main.slice(PROJECTS.length).forEach(addPlaceholder);
-  // 音乐作品集：第一首上大银幕，侧墙的位置留给以后的作品
-  const musicSlots = layout.slots.filter(isMusic);
-  MUSIC.slice(0, musicSlots.length).forEach((m, j) => addPainting(m, j, musicSlots[j]));
+  // 艺术作品集：所有作品在大银幕上按顺序轮播（Q 换下一部），侧墙的位置留给以后
+  const bigScreen = layout.slots.find((s) => isMusic(s) && s.tier === 1);
+  if (MUSIC.length && bigScreen) addPainting(MUSIC[0], 0, bigScreen, MUSIC).pick = 0;
 
   const dark = { bg: '#1c1917', fg: '#f5efe6' };
   const TEXTS = {
@@ -751,18 +780,24 @@ async function init() {
     west: [['西展厅'], { ...dark, size: 130 }],
     east: [['东展厅'], { ...dark, size: 130 }],
     grand: [['长廊'], { ...dark, size: 130 }],
-    music: [['音乐作品集'], { ...dark, size: 130 }],
-    music_title: [['音乐作品集'], { ...dark, size: 110 }],
+    music: [['艺术作品集'], { ...dark, size: 130 }],
+    music_title: [['艺术作品集'], { ...dark, size: 110 }],
   };
   for (const l of layout.labels) if (TEXTS[l.id]) wallText(TEXTS[l.id][0], l, TEXTS[l.id][1]);
   layout.sculptures.forEach(addSculpture);
 
   paintings.forEach((e, i) => {
-    const p = e.p;
-    const li = document.createElement('li');
-    li.innerHTML = `<b>${p.music ? '♪' : String(i + 1).padStart(2, '0')}</b> ${p.title}<span>${p.subtitle}</span>`;
-    li.onclick = () => { teleport(e); toggleMenu(false); };
-    ui.menuList.append(li);
+    // 轮播屏上的每部作品单独列一行，点了直接换到那一部
+    for (const [k, p] of (e.playlist || [e.p]).entries()) {
+      const li = document.createElement('li');
+      li.innerHTML = `<b>${p.music ? '◆' : String(i + 1).padStart(2, '0')}</b> ${p.title}<span>${p.subtitle}</span>`;
+      li.onclick = () => {
+        teleport(e);
+        if (e.playlist && e.pick !== k) playWork(e, k);
+        toggleMenu(false);
+      };
+      ui.menuList.append(li);
+    }
   });
   tick();
 
