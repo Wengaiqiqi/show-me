@@ -76,17 +76,6 @@ export const PROJECTS = [
     videoMobile: 'assets/video/720/practice-grind.mp4',
   },
   {
-    id: 'Tab_Scroller',
-    title: 'Tab Scroller',
-    subtitle: '滚轮切换标签页',
-    desc: '轻量 Chrome 扩展：按住修饰键滚动鼠标滚轮即可快速切换标签页，支持键盘快捷键、快速关闭/新建与循环切换。',
-    tech: ['Chrome Extension', 'Manifest V3', 'JavaScript'],
-    features: ['修饰键 + 滚轮切换标签页', '自定义键盘快捷键', '修饰键 + 单击关闭标签页', '循环切换', '设置跨设备同步'],
-    palette: ['#2563eb', '#f43f5e', '#f8fafc', '#111827'],
-    demoUrl: '',
-    video: '',
-  },
-  {
     id: 'W-W_Agent',
     title: 'W&W Agent',
     subtitle: '多智能体 AI 助手',
